@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>👑 凱悅聚樂部 ❤️ 營運管理系統</title>
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --milk:#F5EFE6;--milk2:#EDE0D4;--milk3:#E3D5C8;
+  --brown1:#8B6F5E;--brown2:#6B4F40;--brown3:#4A3728;
+  --gold:#C9A96E;--gold2:#A8834E;
+  --text1:#3A2E28;--text2:#6B5A52;--text3:#9C8880;
+  --green:#5A8A6A;--red:#A05050;--orange:#C0784A;
+  --white:#FDFAF7;--radius:12px;--radius-sm:8px;
+}
+body{background:var(--milk);font-family:'Georgia',serif;color:var(--text1);min-height:100vh}
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--milk);padding:20px}
+.login-box{background:var(--white);border-radius:var(--radius);padding:36px 32px;width:100%;max-width:380px;border:1px solid var(--milk3);text-align:center;box-shadow:0 4px 24px rgba(74,55,40,0.08)}
+.login-logo{font-size:40px;margin-bottom:6px}
+.login-title{font-size:22px;color:var(--brown3);letter-spacing:3px;margin-bottom:4px}
+.login-sub{font-size:11px;color:var(--text3);letter-spacing:2px;margin-bottom:28px}
+.login-tabs{display:flex;gap:8px;margin-bottom:22px}
+.login-tab{flex:1;background:var(--milk2);border:1px solid var(--milk3);color:var(--text2);padding:8px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s}
+.login-tab.active{background:var(--brown2);color:var(--milk);border-color:var(--brown2)}
+.login-form-group{margin-bottom:14px;text-align:left}
+.login-form-group label{font-size:11px;color:var(--text2);display:block;margin-bottom:5px;letter-spacing:.5px}
+.login-form-group input{background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:10px 14px;font-size:14px;color:var(--text1);font-family:inherit;width:100%;outline:none;transition:border-color .2s}
+.login-form-group input:focus{border-color:var(--gold2)}
+.login-btn{width:100%;background:var(--brown2);color:var(--milk);border:none;padding:11px;border-radius:var(--radius-sm);font-size:14px;cursor:pointer;font-family:inherit;margin-top:6px;transition:background .2s;letter-spacing:1px}
+.login-btn:hover{background:var(--brown3)}
+.login-msg{font-size:12px;margin-top:12px;min-height:20px}
+.login-msg.ok{color:var(--green)}
+.login-msg.err{color:var(--red)}
+
+/* HEADER */
+.header{background:var(--brown3);color:var(--gold);padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.header-title{font-size:18px;letter-spacing:2px;font-weight:normal}
+.header-sub{font-size:10px;color:var(--milk3);letter-spacing:2px;margin-top:2px}
+.header-user{font-size:11px;color:var(--milk3);display:flex;align-items:center;gap:10px}
+.logout-btn{background:none;border:1px solid var(--milk3);color:var(--milk3);padding:4px 12px;border-radius:20px;font-size:10px;cursor:pointer;font-family:inherit;transition:all .2s}
+.logout-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* NAV */
+.nav{background:var(--brown2);display:flex;overflow-x:auto;padding:0 8px;gap:2px}
+.nav-btn{background:none;border:none;color:var(--milk3);padding:10px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;border-bottom:2px solid transparent;transition:all .2s}
+.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.nav-btn:hover{color:var(--milk)}
+
+.content{flex:1;padding:16px;max-width:960px;margin:0 auto;width:100%}
+.card{background:var(--white);border-radius:var(--radius);padding:16px;margin-bottom:14px;border:1px solid var(--milk3)}
+.card-title{font-size:12px;color:var(--text2);letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';width:3px;height:14px;background:var(--gold);border-radius:2px;display:inline-block}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat-card{background:var(--milk2);border-radius:var(--radius-sm);padding:12px;text-align:center;border:1px solid var(--milk3)}
+.stat-label{font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:.5px}
+.stat-value{font-size:20px;color:var(--brown3);font-weight:bold}
+.stat-value.green{color:var(--green)}
+.stat-value.red{color:var(--red)}
+.stat-sub{font-size:10px;color:var(--text3);margin-top:2px}
+input,select,textarea{background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--text1);font-family:inherit;width:100%;outline:none;transition:border-color .2s}
+input:focus,select:focus{border-color:var(--gold2)}
+label{font-size:11px;color:var(--text2);display:block;margin-bottom:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.form-group{margin-bottom:10px}
+.btn{background:var(--brown2);color:var(--milk);border:none;padding:9px 18px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-family:inherit;transition:background .2s}
+.btn:hover{background:var(--brown3)}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-outline{background:none;border:1px solid var(--brown2);color:var(--brown2)}
+.btn-outline:hover{background:var(--milk2)}
+.btn-danger{background:var(--red)}
+.btn-danger:hover{background:#8a3a3a}
+.btn-gold{background:var(--gold2)}
+.btn-gold:hover{background:#8a6a38}
+.btn-green{background:var(--green)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--milk2);color:var(--text2);padding:8px 10px;text-align:left;font-weight:normal;font-size:11px;letter-spacing:.5px}
+td{padding:8px 10px;border-bottom:1px solid var(--milk2);color:var(--text1)}
+tr:last-child td{border-bottom:none}
+.tfoot td{background:var(--milk2);font-weight:bold;color:var(--brown3)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px}
+.badge-green{background:#D4EAD4;color:var(--green)}
+.badge-red{background:#EAD4D4;color:var(--red)}
+.badge-orange{background:#EAE0D4;color:var(--orange)}
+.badge-gold{background:#EAE0C8;color:var(--gold2)}
+.month-selector{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.month-selector select{width:auto;min-width:75px}
+.divider{border:none;border-top:1px solid var(--milk3);margin:14px 0}
+.progress-bar{background:var(--milk2);border-radius:4px;height:8px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.alert{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:10px}
+.alert-green{background:#D4EAD4;color:var(--green);border-left:3px solid var(--green)}
+.alert-orange{background:#F0E4D0;color:var(--orange);border-left:3px solid var(--orange)}
+.alert-red{background:#EAD4D4;color:var(--red);border-left:3px solid var(--red)}
+.hidden{display:none}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.bold{font-weight:bold}
+.text-gold{color:var(--gold2)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.mt8{margin-top:8px}
+.mb8{margin-bottom:8px}
+.flex{display:flex;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.gap8{gap:8px}
+.small{font-size:10px;color:var(--text3)}
+.section-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.section-tab{background:var(--milk2);border:1px solid var(--milk3);color:var(--text2);padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s}
+.section-tab.active{background:var(--brown2);color:var(--milk);border-color:var(--brown2)}
+.list-item{background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.month-cell{background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:10px;cursor:pointer;transition:all .2s}
+.month-cell:hover{border-color:var(--gold2);background:var(--milk2)}
+.month-cell.has-data{border-left:3px solid var(--gold2)}
+.month-cell-name{font-size:10px;color:var(--text2);margin-bottom:4px}
+.month-cell-value{font-size:14px;color:var(--brown3);font-weight:bold}
+.growth-up{color:var(--green);font-size:10px}
+.growth-down{color:var(--red);font-size:10px}
+.cloud-indicator{font-size:10px;padding:2px 10px;border-radius:20px;background:var(--milk2);color:var(--text3);transition:all .3s}
+.cloud-indicator.saved{background:#D4EAD4;color:var(--green)}
+.cloud-indicator.saving{background:#EAE0C8;color:var(--gold2)}
+.cloud-indicator.error{background:#EAD4D4;color:var(--red)}
+
+@media(max-width:600px){
+  .form-row,.form-row-3{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .month-grid{grid-template-columns:repeat(3,1fr)}
+  .header-title{font-size:15px}
+}
+
+</style>
+</head>
+<body>
+
+
+<!-- ═══════════════ FIREBASE 設定說明 ═══════════════ -->
+<div id="setup-guide" style="display:none;visibility:hidden;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.92);z-index:9999;padding:20px;overflow-y:auto">
+  <div style="max-width:640px;margin:40px auto;background:#FDFAF7;border-radius:12px;padding:28px 32px">
+    <div style="font-size:24px;margin-bottom:4px;text-align:center">👑 凱悅聚樂部</div>
+    <div style="text-align:center;font-size:13px;color:#9C8880;margin-bottom:24px;letter-spacing:1px">Firebase 設定向導</div>
+    <div style="background:#F0E4D0;border-left:3px solid #C0784A;padding:10px 14px;border-radius:8px;font-size:12px;color:#6B4F40;margin-bottom:20px">
+      ⚠️ 請先完成以下步驟，再將此 HTML 檔案部署或用瀏覽器開啟使用
+    </div>
+    <div style="font-size:13px;color:#3A2E28;line-height:1.9">
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟一｜建立 Firebase 專案</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>前往 <a href="https://console.firebase.google.com" target="_blank" style="color:#A8834E">console.firebase.google.com</a></li>
+        <li>點擊「新增專案」，輸入專案名稱（例：kaihat-club）</li>
+        <li>可關閉 Google Analytics，點擊「建立專案」</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟二｜啟用 Authentication</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>左側選單 → Authentication → 開始使用</li>
+        <li>Sign-in method → 啟用「電子郵件/密碼」</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟三｜建立 Firestore 資料庫</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>左側選單 → Firestore Database → 建立資料庫</li>
+        <li>選擇「以測試模式開始」→ 選擇位置（建議 asia-east1）</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟四｜取得設定並填入程式碼</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>專案設定（齒輪圖示）→ 你的應用程式 → 新增 Web 應用程式</li>
+        <li>複製 <code style="background:#EDE0D4;padding:1px 6px;border-radius:4px">firebaseConfig</code> 物件</li>
+        <li>用記事本開啟此 HTML 檔案</li>
+        <li>搜尋 <code style="background:#EDE0D4;padding:1px 6px;border-radius:4px">YOUR_API_KEY</code>，替換整個 FIREBASE_CONFIG 物件</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟五｜設定 Firestore 安全規則（正式使用）</div>
+      <pre style="background:#EDE0D4;padding:12px;border-radius:8px;font-size:11px;overflow-x:auto">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/data/{document} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+  }
+}</pre>
+    </div>
+    <button onclick="document.getElementById('setup-guide').style.display='none'"
+      style="width:100%;margin-top:20px;background:#6B4F40;color:#F5EFE6;border:none;padding:11px;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">
+      已完成設定，關閉說明
+    </button>
+  </div>
+</div>
+
+
+
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">👑</div>
+    <div class="login-title">凱悅聚樂部</div>
+    <div class="login-sub">營運管理系統 ❤️</div>
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchAuthTab('login')">登入</button>
+      <button class="login-tab" onclick="switchAuthTab('register')">註冊帳號</button>
+    </div>
+    <div id="login-form">
+      <div class="login-form-group"><label>帳號</label><input type="text" id="l-user" placeholder="請輸入帳號" autocomplete="username"></div>
+      <div class="login-form-group"><label>密碼</label><input type="password" id="l-pass" placeholder="請輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="login-btn" onclick="doLogin()">登　入</button>
+    </div>
+    <div id="register-form" class="hidden">
+      <div class="login-form-group"><label>帳號</label><input type="text" id="r-user" placeholder="設定帳號（2-20字元）" autocomplete="username"></div>
+      <div class="login-form-group"><label>密碼</label><input type="password" id="r-pass" placeholder="設定密碼" autocomplete="new-password"></div>
+      <div class="login-form-group"><label>確認密碼</label><input type="password" id="r-pass2" placeholder="再次輸入密碼" autocomplete="new-password"></div>
+      <button class="login-btn" onclick="doRegister()">建立帳號</button>
+    </div>
+    <div id="auth-msg" class="login-msg"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="main-app" class="app hidden">
+  <div class="header">
+    <div>
+      <div class="header-title">👑 凱悅聚樂部 ❤️</div>
+      <div class="header-sub">KAIHAT CLUB · 營運管理系統</div>
+    </div>
+    <div class="header-user">
+      <span id="cloud-status" class="cloud-indicator">雲端</span>
+      <span id="hdr-username"></span>
+      <button class="logout-btn" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('overview')">📊 總覽</button>
+    <button class="nav-btn" onclick="showPage('daily')">💰 每日營業</button>
+    <button class="nav-btn" onclick="showPage('purchase')">📦 進貨紀錄</button>
+    <button class="nav-btn" onclick="showPage('payroll')">👥 人事薪資</button>
+    <button class="nav-btn" onclick="showPage('monthly')">📈 月度結算</button>
+    <button class="nav-btn" onclick="showPage('signing')">✍️ 簽單管理</button>
+    <button class="nav-btn" onclick="showPage('report')">📋 年度報告</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ───── 總覽 ───── -->
+    <div id="page-overview">
+      <div class="month-selector">
+        <select id="ov-year" onchange="renderOverview()"></select>
+        <select id="ov-month" onchange="renderOverview()">
+          <option value="0">全年度</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+      </div>
+      <div class="stats-grid" id="ov-stats"></div>
+      <div class="card" id="ov-monthly-grid" style="display:none">
+        <div class="card-title">全年各月概況（點擊月份查看明細）</div>
+        <div class="month-grid" id="ov-months"></div>
+      </div>
+      <div class="card" id="ov-daily-table" style="display:none">
+        <div class="card-title" id="ov-table-title">本月每日紀錄</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>日期</th><th>單號</th><th>總營業額</th><th>簽單</th><th>現金</th></tr></thead>
+          <tbody id="ov-daily-tbody"></tbody>
+          <tfoot><tr class="tfoot"><td colspan="2">合計</td><td id="ov-t-total"></td><td id="ov-t-sign"></td><td id="ov-t-cash"></td></tr></tfoot>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">月度損益摘要</div>
+        <div id="ov-pnl-list"></div>
+      </div>
+    </div>
+
+    <!-- ───── 每日營業 ───── -->
+    <div id="page-daily" class="hidden">
+      <div class="card">
+        <div class="card-title">新增每日紀錄</div>
+        <div class="form-row">
+          <div class="form-group"><label>日期</label><input type="date" id="d-date"></div>
+          <div class="form-group"><label>單號</label><input type="text" id="d-num" placeholder="例：K2025-001"></div>
+        </div>
+        <div class="form-row-3">
+          <div class="form-group"><label>總營業額</label><input type="number" id="d-total" placeholder="0"></div>
+          <div class="form-group"><label>簽單金額</label><input type="number" id="d-sign" placeholder="0"></div>
+          <div class="form-group"><label>現金金額（自動）</label><input type="number" id="d-cash" readonly style="background:var(--milk2)"></div>
+        </div>
+        <div class="form-group"><label>備註</label><input type="text" id="d-note" placeholder="選填"></div>
+        <button class="btn btn-gold" onclick="addDaily()">＋ 新增紀錄</button>
+      </div>
+      <div class="card">
+        <div class="card-title">紀錄查詢</div>
+        <div class="month-selector">
+          <select id="dl-year" onchange="renderDailyList()"></select>
+          <select id="dl-month" onchange="renderDailyList()"></select>
+        </div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>日期</th><th>單號</th><th>總營業額</th><th>簽單</th><th>現金</th><th>備註</th><th></th></tr></thead>
+          <tbody id="dl-tbody"></tbody>
+          <tfoot><tr class="tfoot"><td colspan="2">合計</td><td id="dl-t-total">0</td><td id="dl-t-sign">0</td><td id="dl-t-cash">0</td><td colspan="2"></td></tr></tfoot>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ───── 進貨紀錄 ───── -->
+    <div id="page-purchase" class="hidden">
+      <div class="section-tabs">
+        <button class="section-tab active" onclick="setPurchaseTab('A')">A 酒水</button>
+        <button class="section-tab" onclick="setPurchaseTab('B')">B 雜支</button>
+        <button class="section-tab" onclick="setPurchaseTab('C')">C 食材</button>
+        <button class="section-tab" onclick="setPurchaseTab('summary')">匯總統計</button>
+      </div>
+      <div id="pu-form">
+        <div class="card">
+          <div class="card-title" id="pu-form-title">新增 A 酒水進貨</div>
+          <div class="form-row">
+            <div class="form-group"><label>日期</label><input type="date" id="pu-date"></div>
+            <div class="form-group"><label>廠商</label>
+              <select id="pu-vendor" onchange="checkVendorOther()">
+                <option value="">選擇廠商</option>
+                <option value="__other__">＋ 新增廠商</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group hidden" id="pu-vendor-other-row">
+            <label>廠商名稱</label><input type="text" id="pu-vendor-other" placeholder="輸入廠商名稱">
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>品項</label><input type="text" id="pu-item" placeholder="進貨品項"></div>
+            <div class="form-group"><label>金額</label><input type="number" id="pu-amount" placeholder="0"></div>
+          </div>
+          <div class="form-group"><label>備註</label><input type="text" id="pu-note" placeholder="選填"></div>
+          <button class="btn btn-gold" onclick="addPurchase()">＋ 新增進貨</button>
+        </div>
+      </div>
+      <div class="card" id="pu-list-card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0" id="pu-list-title">本月紀錄</div>
+          <div class="month-selector" style="margin-bottom:0">
+            <select id="pu-year" onchange="renderPurchase()"></select>
+            <select id="pu-month" onchange="renderPurchase()"></select>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>日期</th><th>廠商</th><th>品項</th><th>金額</th><th>備註</th><th></th></tr></thead>
+          <tbody id="pu-tbody"></tbody>
+          <tfoot><tr class="tfoot"><td colspan="3">合計</td><td id="pu-t-amount">0</td><td colspan="2"></td></tr></tfoot>
+        </table></div>
+      </div>
+      <div id="pu-summary-card" class="hidden">
+        <div class="card">
+          <div class="card-title">進貨廠商統計</div>
+          <div class="month-selector">
+            <select id="pu-sum-year" onchange="renderPurchaseSummary()"></select>
+            <select id="pu-sum-month" onchange="renderPurchaseSummary()"></select>
+          </div>
+          <div id="pu-summary-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───── 人事薪資 ───── -->
+    <div id="page-payroll" class="hidden">
+      <div class="month-selector">
+        <select id="pr-year" onchange="renderPayroll()"></select>
+        <select id="pr-month" onchange="renderPayroll()"></select>
+      </div>
+      <div class="section-tabs">
+        <button class="section-tab active" onclick="setPayrollTab('A')">A 日薪</button>
+        <button class="section-tab" onclick="setPayrollTab('B')">B 月薪</button>
+        <button class="section-tab" onclick="setPayrollTab('C')">C 訂台</button>
+        <button class="section-tab" onclick="setPayrollTab('D')">D 介紹</button>
+        <button class="section-tab" onclick="setPayrollTab('E')">E 機票</button>
+        <button class="section-tab" onclick="setPayrollTab('summary')">薪資匯總</button>
+      </div>
+      <div id="pr-content"></div>
+    </div>
+
+    <!-- ───── 月度結算 ───── -->
+    <div id="page-monthly" class="hidden">
+      <div class="month-selector">
+        <select id="mo-year" onchange="renderMonthly()"></select>
+        <select id="mo-month" onchange="renderMonthly()"></select>
+      </div>
+      <div class="stats-grid" id="mo-stats"></div>
+      <div class="card">
+        <div class="card-title">支出項目</div>
+        <div id="mo-expense-list"></div>
+        <div class="flex gap8 mt8">
+          <input type="text" id="mo-exp-name" placeholder="項目名稱（如：租金、電信費、台電、水費）" style="flex:1">
+          <input type="number" id="mo-exp-amt" placeholder="金額" style="width:120px">
+          <button class="btn btn-sm btn-gold" onclick="addMonthExpense()">＋ 新增</button>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--milk3)">
+          <div class="flex-between"><span style="font-size:13px">人事薪資（自動帶入）</span><span id="mo-payroll-auto" style="font-weight:bold;color:var(--red)">$0</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">損益計算</div>
+        <div id="mo-pnl-detail"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">佔比分析與警示</div>
+        <div id="mo-analysis"></div>
+      </div>
+      <button class="btn btn-gold" onclick="saveMonthly()" style="margin-bottom:20px">💾 儲存本月結算</button>
+    </div>
+
+    <!-- ───── 簽單管理 ───── -->
+    <div id="page-signing" class="hidden">
+      <div class="card">
+        <div class="card-title">新增簽單紀錄</div>
+        <div class="form-row">
+          <div class="form-group"><label>日期</label><input type="date" id="sg-date"></div>
+          <div class="form-group"><label>客戶名稱</label><input type="text" id="sg-client" placeholder="客戶名稱"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>簽單金額</label><input type="number" id="sg-amount" placeholder="0"></div>
+          <div class="form-group"><label>已收金額</label><input type="number" id="sg-collected" placeholder="0"></div>
+        </div>
+        <div class="form-group"><label>備註</label><input type="text" id="sg-note" placeholder="選填"></div>
+        <button class="btn btn-gold" onclick="addSigning()">＋ 新增簽單</button>
+      </div>
+      <div class="card">
+        <div class="card-title">簽單統計</div>
+        <div class="month-selector">
+          <select id="sg-year" onchange="renderSigning()"></select>
+          <select id="sg-month" onchange="renderSigning()"></select>
+        </div>
+        <div id="sg-stats" class="stats-grid" style="margin-bottom:12px"></div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>日期</th><th>客戶</th><th>簽單金額</th><th>已收</th><th>未收</th><th>備註</th><th></th></tr></thead>
+          <tbody id="sg-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ───── 年度報告 ───── -->
+    <div id="page-report" class="hidden">
+      <div class="section-tabs">
+        <button class="section-tab active" onclick="setReportTab('monthly')">月度比較</button>
+        <button class="section-tab" onclick="setReportTab('yearly')">年度比較</button>
+      </div>
+      <div id="rp-monthly">
+        <div class="card">
+          <div class="card-title">月度營收報告</div>
+          <div class="mb8"><select id="rp-year" onchange="renderReport()"></select></div>
+          <div class="month-grid" id="rp-month-cards" style="margin-bottom:12px"></div>
+          <table>
+            <thead><tr><th>月份</th><th>營業額</th><th>支出</th><th>淨利</th><th>vs 上月</th></tr></thead>
+            <tbody id="rp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="rp-yearly" class="hidden">
+        <div class="card">
+          <div class="card-title">年度比較</div>
+          <div class="flex gap8 mb8" style="flex-wrap:wrap">
+            <div><label style="font-size:10px">年份 A</label><select id="rp-yr-a" onchange="renderYearlyReport()"></select></div>
+            <div><label style="font-size:10px">年份 B</label><select id="rp-yr-b" onchange="renderYearlyReport()"></select></div>
+          </div>
+          <div id="rp-yearly-content"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-app -->
+
+
+
+<script type="module">
+/* ════════════════════════════════════════
+   凱悅聚樂部 營運管理系統  v3.0  Firebase版
+   使用前請填入下方 Firebase 設定
+════════════════════════════════════════ */
+
+/* ══ ① 填入你的 Firebase 設定 ══════════
+   至 https://console.firebase.google.com
+   建立專案 → 新增 Web App → 複製設定貼入
+══════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDjs7ToBM8OxHv9PRHDP-FdAVlVfTJcotQ",
+  authDomain:        "regency-club-8cc34.firebaseapp.com",
+  projectId:         "regency-club-8cc34",
+  storageBucket:     "regency-club-8cc34.firebasestorage.app",
+  messagingSenderId: "257354255726",
+  appId:             "1:257354255726:web:2fd8f3153173fc96ec457f"
+};
+
+/* ══ ② Firebase SDK（從 CDN 載入）══════ */
+import { initializeApp }                        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword,
+         signInWithEmailAndPassword, signOut,
+         onAuthStateChanged }                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc,
+         getDoc, onSnapshot }                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseApp = initializeApp(FIREBASE_CONFIG);
+const auth        = getAuth(firebaseApp);
+const db          = getFirestore(firebaseApp);
+
+/* ════════════════════════════════════════
+   狀態
+════════════════════════════════════════ */
+const NOW = new Date();
+let DB  = {};
+let currentUser   = null;   // Firebase User 物件
+let saveTimer     = null;
+let unsubSnapshot = null;   // Firestore 即時監聽 unsubscribe fn
+
+/* ════════════════════════════════════════
+   雲端 I/O（Firestore）
+   文件路徑：users/{uid}/data/main
+════════════════════════════════════════ */
+function dbRef(uid){ return doc(db, 'users', uid, 'data', 'main'); }
+
+function setCloudStatus(s){
+  const el = document.getElementById('cloud-status');
+  if(!el) return;
+  el.className = 'cloud-indicator ' + s;
+  el.textContent = s==='saved'?'☁ 已同步':s==='saving'?'↑ 同步中':'✕ 同步失敗';
+}
+
+async function saveDB(){
+  if(!currentUser) return;
+  setCloudStatus('saving');
+  try{
+    await setDoc(dbRef(currentUser.uid), { payload: JSON.stringify(DB), updatedAt: Date.now() });
+    setCloudStatus('saved');
+  }catch(e){
+    console.error('Firestore save error', e);
+    setCloudStatus('error');
+  }
+}
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDB, 1000); }
+
+async function loadDB(){
+  if(!currentUser) return;
+  try{
+    const snap = await getDoc(dbRef(currentUser.uid));
+    DB = snap.exists() ? JSON.parse(snap.data().payload) : {};
+  }catch(e){ DB = {}; }
+  ensureSchema();
+}
+
+/* 即時監聽（多裝置同步） */
+function startRealtimeSync(){
+  if(unsubSnapshot) unsubSnapshot();
+  unsubSnapshot = onSnapshot(dbRef(currentUser.uid), snap => {
+    if(!snap.exists()) return;
+    try{
+      const remote = JSON.parse(snap.data().payload);
+      DB = remote;
+      ensureSchema();
+      // 只在已在畫面上才刷新
+      const activePage = document.querySelector('[id^="page-"]:not(.hidden)');
+      if(activePage) refreshCurrentPage(activePage.id.replace('page-',''));
+    }catch(e){}
+  });
+}
+
+function stopRealtimeSync(){
+  if(unsubSnapshot){ unsubSnapshot(); unsubSnapshot=null; }
+}
+
+function ensureSchema(){
+  if(!DB.daily)     DB.daily = [];
+  if(!DB.purchases) DB.purchases = [];
+  if(!DB.payroll)   DB.payroll = {};
+  if(!DB.monthly)   DB.monthly = {};
+  if(!DB.signing)   DB.signing = [];
+  if(!DB.vendors)   DB.vendors = {
+    A:['統一','金車','保樂力加'],
+    B:['文具行','清潔用品'],
+    C:['農產市場','魚市場']
+  };
+}
+
+/* ════════════════════════════════════════
+   AUTH（Firebase Authentication）
+   登入方式：Email/Password
+   帳號格式：系統自動在帳號後加 @kaihat.app
+════════════════════════════════════════ */
+function toEmail(user){ return user.trim().toLowerCase() + '@kaihat.app'; }
+
+function switchAuthTab(t){
+  document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('active',['login','register'][i]===t));
+  document.getElementById('login-form').classList.toggle('hidden', t!=='login');
+  document.getElementById('register-form').classList.toggle('hidden', t!=='register');
+  document.getElementById('auth-msg').textContent='';
+}
+
+async function doRegister(){
+  const user  = document.getElementById('r-user').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  const msg   = document.getElementById('auth-msg');
+  if(!user||!pass){ msg.className='login-msg err'; msg.textContent='請填寫帳號和密碼'; return; }
+  if(pass!==pass2){ msg.className='login-msg err'; msg.textContent='兩次密碼不一致'; return; }
+  if(pass.length<6){ msg.className='login-msg err'; msg.textContent='密碼至少需要 6 個字元'; return; }
+  if(!/^[\w\u4e00-\u9fa5]{2,20}$/.test(user)){ msg.className='login-msg err'; msg.textContent='帳號限 2-20 字元（中英數字底線）'; return; }
+  msg.className='login-msg'; msg.textContent='建立中...';
+  try{
+    await createUserWithEmailAndPassword(auth, toEmail(user), pass);
+    msg.className='login-msg ok'; msg.textContent='✅ 帳號建立成功！';
+  }catch(e){
+    const errMap = {
+      'auth/email-already-in-use':'此帳號已存在',
+      'auth/weak-password':'密碼強度不足（至少6碼）',
+      'auth/invalid-email':'帳號格式不符'
+    };
+    msg.className='login-msg err';
+    msg.textContent = errMap[e.code] || ('建立失敗：'+e.message);
+  }
+}
+
+async function doLogin(){
+  const user = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const msg  = document.getElementById('auth-msg');
+  if(!user||!pass){ msg.className='login-msg err'; msg.textContent='請填寫帳號和密碼'; return; }
+  msg.className='login-msg'; msg.textContent='登入中...';
+  try{
+    await signInWithEmailAndPassword(auth, toEmail(user), pass);
+    // onAuthStateChanged 會接手後續
+  }catch(e){
+    const errMap = {
+      'auth/user-not-found':'帳號不存在，請先註冊',
+      'auth/wrong-password':'密碼錯誤',
+      'auth/invalid-credential':'帳號或密碼錯誤',
+      'auth/too-many-requests':'登入失敗次數過多，請稍後再試'
+    };
+    msg.className='login-msg err';
+    msg.textContent = errMap[e.code] || ('登入失敗：'+e.message);
+  }
+}
+
+async function doLogout(){
+  stopRealtimeSync();
+  await signOut(auth);
+  currentUser = null;
+  DB = {};
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('l-user').value='';
+  document.getElementById('l-pass').value='';
+  document.getElementById('auth-msg').textContent='';
+}
+
+/* Firebase Auth 狀態監聽（自動登入） */
+onAuthStateChanged(auth, async user => {
+  if(user){
+    currentUser = user;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    const displayName = user.email.replace('@kaihat.app','');
+    document.getElementById('hdr-username').textContent = displayName;
+    setCloudStatus('saving');
+    await loadDB();
+    setCloudStatus('saved');
+    startRealtimeSync();
+    initYearSelects();
+    setDefaultDate('d-date');
+    setDefaultDate('pu-date');
+    setDefaultDate('sg-date');
+    showPage('overview');
+  } else {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('main-app').classList.add('hidden');
+  }
+});
+
+/* ════════════════════════════════════════
+   UTILS
+════════════════════════════════════════ */
+function fmt(n){ return Number(n||0).toLocaleString(); }
+function ym(y,m){ return y+'-'+(String(m).padStart(2,'0')); }
+function parseYM(s){ const p=s.split('-'); return {y:+p[0],m:+p[1]}; }
+function setDefaultDate(id){ const el=document.getElementById(id); if(el&&!el.value) el.value=NOW.toISOString().slice(0,10); }
+
+function initYearSelects(){
+  const y=NOW.getFullYear(), years=[];
+  for(let i=y-4;i<=y+1;i++) years.push(i);
+  ['ov-year','dl-year','pu-year','pu-sum-year','pr-year','mo-year','sg-year','rp-year','rp-yr-a','rp-yr-b'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    el.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
+  });
+  const months=Array.from({length:12},(_,i)=>`<option value="${i+1}"${(i+1)===NOW.getMonth()+1?' selected':''}>${i+1}月</option>`).join('');
+  ['dl-month','pu-month','pr-month','mo-month'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=months;
+  });
+  const rpa=document.getElementById('rp-yr-b'); if(rpa) rpa.value=y-1;
+  const puSM=document.getElementById('pu-sum-month');
+  if(puSM) puSM.innerHTML='<option value="0">全年度</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}月</option>`).join('');
+  const sgm=document.getElementById('sg-month');
+  if(sgm) sgm.innerHTML='<option value="0">全部月份</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}月</option>`).join('');
+}
+
+function refreshCurrentPage(id){
+  if(id==='overview') renderOverview();
+  else if(id==='daily') renderDailyList();
+  else if(id==='purchase') renderPurchase();
+  else if(id==='payroll') renderPayroll();
+  else if(id==='monthly') renderMonthly();
+  else if(id==='signing') renderSigning();
+  else if(id==='report') renderReport();
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+function showPage(id){
+  document.querySelectorAll('[id^="page-"]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('page-'+id).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const map={overview:0,daily:1,purchase:2,payroll:3,monthly:4,signing:5,report:6};
+  document.querySelectorAll('.nav-btn')[map[id]]?.classList.add('active');
+  refreshCurrentPage(id);
+  if(id==='purchase'){ setPurchaseTab('A'); renderVendors(); }
+}
+
+/* ════════════════════════════════════════
+   📊 總覽
+════════════════════════════════════════ */
+function renderOverview(){
+  const year=+document.getElementById('ov-year').value;
+  const month=+document.getElementById('ov-month').value;
+  const filtered=DB.daily.filter(r=>{
+    const d=new Date(r.date);
+    return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;
+  });
+  let rev=0,sign=0,cash=0;
+  filtered.forEach(r=>{rev+=+r.total||0; sign+=+r.sign||0; cash+=+r.cash||0;});
+  document.getElementById('ov-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">總營業額</div><div class="stat-value">$${fmt(rev)}</div></div>
+    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${fmt(sign)}</div></div>
+    <div class="stat-card"><div class="stat-label">現金金額</div><div class="stat-value">$${fmt(cash)}</div></div>`;
+  const grid=document.getElementById('ov-monthly-grid');
+  const tbl=document.getElementById('ov-daily-table');
+  if(!month){
+    grid.style.display=''; tbl.style.display='none';
+    document.getElementById('ov-months').innerHTML=Array.from({length:12},(_,i)=>{
+      const k=ym(year,i+1);
+      const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()===i;});
+      const r2=days.reduce((s,r)=>s+(+r.total||0),0);
+      const mo=DB.monthly[k]; const np=mo?mo.netProfit:null;
+      return `<div class="month-cell ${r2>0?'has-data':''}" onclick="selOvMonth(${year},${i+1})">
+        <div class="month-cell-name">${i+1}月</div>
+        <div class="month-cell-value">${r2>0?'$'+fmt(r2):'-'}</div>
+        ${np!==null?`<div class="${np>=0?'growth-up':'growth-down'}">${np>=0?'+':''} $${fmt(Math.abs(np))}</div>`:''}
+      </div>`;
+    }).join('');
+  } else {
+    grid.style.display='none'; tbl.style.display='';
+    document.getElementById('ov-table-title').textContent=`${year}年${month}月 每日紀錄`;
+    const rows=filtered.sort((a,b)=>a.date.localeCompare(b.date));
+    document.getElementById('ov-daily-tbody').innerHTML=rows.map(r=>
+      `<tr><td>${r.date}</td><td>${r.num||'-'}</td><td>$${fmt(r.total)}</td><td>$${fmt(r.sign)}</td><td>$${fmt(r.cash)}</td></tr>`).join('');
+    document.getElementById('ov-t-total').textContent='$'+fmt(rev);
+    document.getElementById('ov-t-sign').textContent='$'+fmt(sign);
+    document.getElementById('ov-t-cash').textContent='$'+fmt(cash);
+  }
+  const pnlEl=document.getElementById('ov-pnl-list');
+  const keys=(month?[ym(year,month)]:Array.from({length:12},(_,i)=>ym(year,i+1))).filter(k=>DB.monthly[k]);
+  if(!keys.length){ pnlEl.innerHTML='<div class="small text-center" style="padding:10px">尚無月度結算資料</div>'; return; }
+  pnlEl.innerHTML=keys.map(k=>{
+    const mo=DB.monthly[k]; if(!mo)return'';
+    const{y,m}=parseYM(k); const np=+mo.netProfit||0;
+    return `<div class="list-item">
+      <div><div style="font-size:13px;font-weight:bold">${y}年${m}月</div>
+      <div class="small">營業額 $${fmt(mo.revenue)} ｜ 支出 $${fmt(mo.totalExp)}</div></div>
+      <div class="${np>=0?'text-green':'text-red'}" style="font-size:15px;font-weight:bold">${np>=0?'+ ':'- '}$${fmt(Math.abs(np))}</div>
+    </div>`;
+  }).join('');
+}
+function selOvMonth(y,m){ document.getElementById('ov-month').value=m; renderOverview(); }
+
+/* ════════════════════════════════════════
+   💰 每日營業
+════════════════════════════════════════ */
+function addDaily(){
+  const date=document.getElementById('d-date').value;
+  const num=document.getElementById('d-num').value;
+  const total=+document.getElementById('d-total').value||0;
+  const sign=+document.getElementById('d-sign').value||0;
+  const note=document.getElementById('d-note').value;
+  if(!date||total<=0){ alert('請填寫日期和總營業額'); return; }
+  DB.daily.push({id:Date.now(),date,num,total,sign,cash:total-sign,note});
+  scheduleSave();
+  ['d-num','d-total','d-sign','d-cash','d-note'].forEach(id=>document.getElementById(id).value='');
+  renderDailyList();
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('d-sign').addEventListener('input',function(){
+    const t=+document.getElementById('d-total').value||0;
+    document.getElementById('d-cash').value=t-(+this.value||0);
+  });
+  document.getElementById('d-total').addEventListener('input',function(){
+    const s=+document.getElementById('d-sign').value||0;
+    document.getElementById('d-cash').value=(+this.value||0)-s;
+  });
+});
+function renderDailyList(){
+  const year=+document.getElementById('dl-year').value;
+  const month=+document.getElementById('dl-month').value;
+  const rows=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===month;}).sort((a,b)=>a.date.localeCompare(b.date));
+  let tt=0,ts=0,tc=0;
+  document.getElementById('dl-tbody').innerHTML=rows.map(r=>{
+    tt+=+r.total||0; ts+=+r.sign||0; tc+=+r.cash||0;
+    return `<tr><td>${r.date}</td><td>${r.num||'-'}</td><td>$${fmt(r.total)}</td><td>$${fmt(r.sign)}</td><td>$${fmt(r.cash)}</td><td>${r.note||''}</td><td><button class="btn btn-sm btn-danger" onclick="deleteDaily(${r.id})">刪除</button></td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">本月尚無紀錄</td></tr>';
+  document.getElementById('dl-t-total').textContent='$'+fmt(tt);
+  document.getElementById('dl-t-sign').textContent='$'+fmt(ts);
+  document.getElementById('dl-t-cash').textContent='$'+fmt(tc);
+}
+function deleteDaily(id){ if(!confirm('確認刪除此筆紀錄？'))return; DB.daily=DB.daily.filter(r=>r.id!==id); scheduleSave(); renderDailyList(); }
+
+/* ════════════════════════════════════════
+   📦 進貨紀錄
+════════════════════════════════════════ */
+let puTab='A';
+function setPurchaseTab(t){
+  puTab=t;
+  document.querySelectorAll('#page-purchase .section-tab').forEach((b,i)=>b.classList.toggle('active',['A','B','C','summary'][i]===t));
+  document.getElementById('pu-form').style.display=t==='summary'?'none':'';
+  document.getElementById('pu-list-card').style.display=t==='summary'?'none':'';
+  document.getElementById('pu-summary-card').classList.toggle('hidden',t!=='summary');
+  const names={A:'A 酒水',B:'B 雜支',C:'C 食材'};
+  if(t!=='summary'){
+    document.getElementById('pu-form-title').textContent='新增 '+names[t]+' 進貨';
+    document.getElementById('pu-list-title').textContent='本月 '+names[t]+' 紀錄';
+    renderVendors(); renderPurchase();
+  } else renderPurchaseSummary();
+}
+function renderVendors(){
+  const sel=document.getElementById('pu-vendor');
+  sel.innerHTML='<option value="">選擇廠商</option>'+(DB.vendors[puTab]||[]).map(v=>`<option value="${v}">${v}</option>`).join('')+'<option value="__other__">＋ 新增廠商</option>';
+}
+function checkVendorOther(){ document.getElementById('pu-vendor-other-row').classList.toggle('hidden',document.getElementById('pu-vendor').value!=='__other__'); }
+function addPurchase(){
+  const date=document.getElementById('pu-date').value;
+  let vendor=document.getElementById('pu-vendor').value;
+  if(vendor==='__other__'){
+    vendor=document.getElementById('pu-vendor-other').value.trim();
+    if(!vendor){ alert('請輸入廠商名稱'); return; }
+    if(!DB.vendors[puTab].includes(vendor)) DB.vendors[puTab].push(vendor);
+    document.getElementById('pu-vendor-other').value='';
+    document.getElementById('pu-vendor-other-row').classList.add('hidden');
+    renderVendors();
+  }
+  const item=document.getElementById('pu-item').value;
+  const amount=+document.getElementById('pu-amount').value||0;
+  const note=document.getElementById('pu-note').value;
+  if(!date||!vendor||amount<=0){ alert('請填寫日期、廠商和金額'); return; }
+  DB.purchases.push({id:Date.now(),date,category:puTab,vendor,item,amount,note});
+  scheduleSave();
+  ['pu-item','pu-amount','pu-note'].forEach(id=>document.getElementById(id).value='');
+  renderPurchase();
+}
+function renderPurchase(){
+  const year=+document.getElementById('pu-year').value;
+  const month=+document.getElementById('pu-month').value;
+  const rows=DB.purchases.filter(r=>{const d=new Date(r.date);return r.category===puTab&&d.getFullYear()===year&&d.getMonth()+1===month;}).sort((a,b)=>a.date.localeCompare(b.date));
+  let ta=0;
+  document.getElementById('pu-tbody').innerHTML=rows.map(r=>{ta+=+r.amount||0;
+    return `<tr><td>${r.date}</td><td>${r.vendor}</td><td>${r.item||'-'}</td><td>$${fmt(r.amount)}</td><td>${r.note||''}</td><td><button class="btn btn-sm btn-danger" onclick="deletePurchase(${r.id})">刪除</button></td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="text-center small" style="padding:16px">本月尚無進貨紀錄</td></tr>';
+  document.getElementById('pu-t-amount').textContent='$'+fmt(ta);
+}
+function deletePurchase(id){ if(!confirm('確認刪除？'))return; DB.purchases=DB.purchases.filter(r=>r.id!==id); scheduleSave(); renderPurchase(); }
+function renderPurchaseSummary(){
+  const year=+document.getElementById('pu-sum-year').value;
+  const month=+document.getElementById('pu-sum-month').value;
+  const filtered=DB.purchases.filter(r=>{const d=new Date(r.date);return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;});
+  let html='',grand=0;
+  [{cat:'A',name:'A 酒水'},{cat:'B',name:'B 雜支'},{cat:'C',name:'C 食材'}].forEach(({cat,name})=>{
+    const rows=filtered.filter(r=>r.category===cat);
+    const catTotal=rows.reduce((s,r)=>s+(+r.amount||0),0); grand+=catTotal;
+    const vendors={};
+    rows.forEach(r=>{vendors[r.vendor]=(vendors[r.vendor]||0)+(+r.amount||0);});
+    html+=`<div style="margin-bottom:14px">
+      <div class="flex-between" style="background:var(--milk2);padding:8px 12px;border-radius:var(--radius-sm);margin-bottom:6px">
+        <strong>${name}</strong><span class="text-gold bold">$${fmt(catTotal)}</span>
+      </div>
+      ${Object.entries(vendors).length?Object.entries(vendors).map(([v,a])=>`<div class="flex-between" style="padding:4px 12px;font-size:12px;color:var(--text2)"><span>└ ${v}</span><span>$${fmt(a)}</span></div>`).join(''):'<div class="small" style="padding:4px 12px">（無紀錄）</div>'}
+    </div>`;
+  });
+  html+=`<div class="flex-between" style="background:var(--brown3);padding:12px 14px;border-radius:var(--radius-sm);color:var(--gold);margin-top:8px">
+    <strong style="font-size:14px">A ＋ B ＋ C 總計</strong><strong style="font-size:18px">$${fmt(grand)}</strong>
+  </div>`;
+  document.getElementById('pu-summary-content').innerHTML=html;
+}
+
+/* ════════════════════════════════════════
+   👥 人事薪資
+════════════════════════════════════════ */
+let prTab='A';
+function setPayrollTab(t){ prTab=t; document.querySelectorAll('#page-payroll .section-tab').forEach((b,i)=>b.classList.toggle('active',['A','B','C','D','E','summary'][i]===t)); renderPayroll(); }
+function prKey(){ return ym(document.getElementById('pr-year').value, document.getElementById('pr-month').value); }
+function ensurePayroll(k){ if(!DB.payroll[k]) DB.payroll[k]={A:[],B:[],C:[],D:[],E:[]}; }
+function calcPayrollTotal(k){
+  ensurePayroll(k); const d=DB.payroll[k];
+  const a=d.A.reduce((s,p)=>s+(+p.daily||0)*(+p.days||0),0);
+  const b=d.B.reduce((s,p)=>s+(+p.salary||0),0);
+  const c=d.C.reduce((s,p)=>s+(+p.bonus||0)*(+p.tables||0),0);
+  const dd=d.D.reduce((s,p)=>s+(+p.amount||0),0);
+  const e=d.E.reduce((s,p)=>s+(+p.amount||0),0);
+  return{a,b,c,d:dd,e,total:a+b+c+dd+e};
+}
+function renderPayroll(){
+  const k=prKey(); ensurePayroll(k); const d=DB.payroll[k];
+  const c=document.getElementById('pr-content');
+  if(prTab==='A'){
+    let total=0; d.A.forEach(p=>{p.salary=(+p.daily||0)*(+p.days||0); total+=p.salary;});
+    c.innerHTML=`<div class="card"><div class="card-title">A 日薪人員</div>
+      ${d.A.map((p,i)=>`<div class="form-row-3" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('A',${i},'name',this.value)"></div>
+        <div><label>日薪</label><input type="number" value="${p.daily||''}" onchange="updPR('A',${i},'daily',this.value)"></div>
+        <div><label>天數</label><input type="number" value="${p.days||''}" onchange="updPR('A',${i},'days',this.value)"></div>
+        <div style="grid-column:span 2"><label>本月薪資</label><input value="$${fmt(p.salary||0)}" readonly style="background:var(--milk2)"></div>
+        <div><label>&nbsp;</label><button class="btn btn-sm btn-danger" onclick="removeP('A',${i})">刪除</button></div>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPA()">＋ 新增日薪人員</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>日薪合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='B'){
+    let total=0; d.B.forEach(p=>total+=(+p.salary||0));
+    c.innerHTML=`<div class="card"><div class="card-title">B 月薪人員</div>
+      ${d.B.map((p,i)=>`<div class="form-row" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('B',${i},'name',this.value)"></div>
+        <div><label>月薪</label><input type="number" value="${p.salary||''}" onchange="updPR('B',${i},'salary',this.value)"></div>
+        <button class="btn btn-sm btn-danger" onclick="removeP('B',${i})">刪除</button>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPB()">＋ 新增月薪人員</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>月薪合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='C'){
+    let total=0; d.C.forEach(p=>{p.amount=(+p.bonus||0)*(+p.tables||0); total+=p.amount;});
+    c.innerHTML=`<div class="card"><div class="card-title">C 訂台獎金</div>
+      ${d.C.map((p,i)=>`<div class="form-row-3" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('C',${i},'name',this.value)"></div>
+        <div><label>每桌獎金</label><input type="number" value="${p.bonus||''}" onchange="updPR('C',${i},'bonus',this.value)"></div>
+        <div><label>桌數</label><input type="number" value="${p.tables||''}" onchange="updPR('C',${i},'tables',this.value)"></div>
+        <div style="grid-column:span 2"><label>金額</label><input value="$${fmt(p.amount||0)}" readonly style="background:var(--milk2)"></div>
+        <div><label>&nbsp;</label><button class="btn btn-sm btn-danger" onclick="removeP('C',${i})">刪除</button></div>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPI('C',{name:'',bonus:0,tables:0})">＋ 新增</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>訂台獎金合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='D'){
+    let total=0; d.D.forEach(p=>total+=(+p.amount||0));
+    c.innerHTML=`<div class="card"><div class="card-title">D 介紹費</div>
+      ${d.D.map((p,i)=>`<div class="form-row" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('D',${i},'name',this.value)"></div>
+        <div><label>介紹費</label><input type="number" value="${p.amount||''}" onchange="updPR('D',${i},'amount',this.value)"></div>
+        <button class="btn btn-sm btn-danger" onclick="removeP('D',${i})">刪除</button>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPI('D',{name:'',amount:0})">＋ 新增</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>介紹費合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='E'){
+    let total=0; d.E.forEach(p=>total+=(+p.amount||0));
+    c.innerHTML=`<div class="card"><div class="card-title">E 機票補助</div>
+      ${d.E.map((p,i)=>`<div class="form-row" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('E',${i},'name',this.value)"></div>
+        <div><label>補助金額</label><input type="number" value="${p.amount||''}" onchange="updPR('E',${i},'amount',this.value)"></div>
+        <button class="btn btn-sm btn-danger" onclick="removeP('E',${i})">刪除</button>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPI('E',{name:'',amount:0})">＋ 新增</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>機票補助合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else {
+    const t=calcPayrollTotal(k);
+    c.innerHTML=`<div class="card"><div class="card-title">薪資匯總</div>
+      <table><thead><tr><th>姓名</th><th>類型</th><th>金額</th></tr></thead><tbody>
+        ${d.A.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-gold">日薪</span></td><td>$${fmt((+p.daily||0)*(+p.days||0))}</td></tr>`).join('')}
+        ${d.B.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-orange">月薪</span></td><td>$${fmt(p.salary||0)}</td></tr>`).join('')}
+        ${d.C.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-green">訂台</span></td><td>$${fmt((+p.bonus||0)*(+p.tables||0))}</td></tr>`).join('')}
+        ${d.D.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-red">介紹費</span></td><td>$${fmt(p.amount||0)}</td></tr>`).join('')}
+        ${d.E.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-gold">機票</span></td><td>$${fmt(p.amount||0)}</td></tr>`).join('')}
+      </tbody>
+      <tfoot><tr class="tfoot"><td colspan="2">薪資總額</td><td>$${fmt(t.total)}</td></tr></tfoot></table>
+    </div>`;
+  }
+}
+function updPR(t,i,f,v){ const k=prKey(); DB.payroll[k][t][i][f]=v; scheduleSave(); renderPayroll(); }
+function removeP(t,i){ const k=prKey(); DB.payroll[k][t].splice(i,1); scheduleSave(); renderPayroll(); }
+function addPA(){ const k=prKey(); DB.payroll[k].A.push({name:'',daily:0,days:0}); scheduleSave(); renderPayroll(); }
+function addPB(){ const k=prKey(); DB.payroll[k].B.push({name:'',salary:0}); scheduleSave(); renderPayroll(); }
+function addPI(t,obj){ const k=prKey(); DB.payroll[k][t].push({...obj}); scheduleSave(); renderPayroll(); }
+
+/* ════════════════════════════════════════
+   📈 月度結算
+════════════════════════════════════════ */
+function moKey(){ return ym(document.getElementById('mo-year').value, document.getElementById('mo-month').value); }
+function renderMonthly(){
+  const k=moKey(); const{y,m}=parseYM(k);
+  const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const revenue=days.reduce((s,r)=>s+(+r.total||0),0);
+  const workDays=days.length;
+  const avgDaily=workDays>0?Math.round(revenue/workDays):0;
+  const pr=calcPayrollTotal(k);
+  if(!DB.monthly[k]) DB.monthly[k]={expenses:[],netProfit:0,revenue:0,totalExp:0};
+  const mo=DB.monthly[k]; mo.revenue=revenue; if(!mo.expenses)mo.expenses=[];
+  let totalExp=pr.total; mo.expenses.forEach(e=>totalExp+=(+e.amount||0));
+  const netProfit=revenue-totalExp; mo.netProfit=netProfit; mo.totalExp=totalExp;
+  document.getElementById('mo-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">本月營業額</div><div class="stat-value">$${fmt(revenue)}</div><div class="stat-sub">工作 ${workDays} 天</div></div>
+    <div class="stat-card"><div class="stat-label">總支出</div><div class="stat-value red">$${fmt(totalExp)}</div></div>
+    <div class="stat-card"><div class="stat-label">實賺金額</div><div class="stat-value ${netProfit>=0?'green':'red'}">${netProfit>=0?'+ ':''} $${fmt(Math.abs(netProfit))}</div></div>`;
+  document.getElementById('mo-payroll-auto').textContent='$'+fmt(pr.total);
+  document.getElementById('mo-expense-list').innerHTML=mo.expenses.map((e,i)=>`
+    <div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--milk2)">
+      <span style="font-size:13px">${e.name}</span>
+      <div class="flex gap8">
+        <input type="number" value="${e.amount||0}" style="width:130px" onchange="updMonthExp(${i},this.value)">
+        <button class="btn btn-sm btn-danger" onclick="removeMonthExp(${i})">刪除</button>
+      </div>
+    </div>`).join('')||'<div class="small" style="padding:8px 0">尚未新增支出項目</div>';
+  const puTotal=DB.purchases.filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;}).reduce((s,r)=>s+(+r.amount||0),0);
+  document.getElementById('mo-pnl-detail').innerHTML=`
+    <div class="flex-between" style="padding:6px 0"><span>本月總營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
+    <div class="flex-between" style="padding:6px 0"><span>人事薪資</span><span class="text-red">－ $${fmt(pr.total)}</span></div>
+    ${mo.expenses.map(e=>`<div class="flex-between" style="padding:6px 0"><span>${e.name}</span><span class="text-red">－ $${fmt(e.amount)}</span></div>`).join('')}
+    <hr class="divider">
+    <div class="flex-between" style="padding:6px 0"><span class="small">（參考）本月進貨成本</span><span class="small">$${fmt(puTotal)}</span></div>
+    <div class="flex-between" style="padding:10px 0;font-weight:bold;font-size:15px;border-top:2px solid var(--milk3);margin-top:6px">
+      <span>當月實賺金額</span>
+      <span class="${netProfit>=0?'text-green':'text-red'}">${netProfit>=0?'＋ ':'－ '}$${fmt(Math.abs(netProfit))}</span>
+    </div>
+    <div class="flex-between small"><span>平均每日營業額</span><span>$${fmt(avgDaily)} / 天</span></div>`;
+  const prR=revenue>0?Math.round(pr.total/revenue*100):0;
+  const puR=revenue>0?Math.round(puTotal/revenue*100):0;
+  const prS=prR<35?{cls:'alert-green',txt:'優良 ✓',msg:`人事佔比 ${prR}%，控制良好`}:prR<50?{cls:'alert-orange',txt:'尚可 ⚠',msg:`人事佔比 ${prR}%，偏高，建議優化排班`}:{cls:'alert-red',txt:'欠佳 ✕',msg:`人事佔比 ${prR}%，過高，需立即檢討`};
+  const puS=puR<30?{cls:'alert-green',txt:'優良 ✓',msg:`進貨佔比 ${puR}%，控制良好`}:puR<45?{cls:'alert-orange',txt:'尚可 ⚠',msg:`進貨佔比 ${puR}%，偏高，注意庫存管理`}:{cls:'alert-red',txt:'欠佳 ✕',msg:`進貨佔比 ${puR}%，過高，建議重新議價`};
+  document.getElementById('mo-analysis').innerHTML=`
+    <div style="margin-bottom:12px">
+      <div class="flex-between small mb8"><span>人事佔比</span><span class="badge ${prS.cls}">${prS.txt}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(prR,100)}%;background:${prR<35?'var(--green)':prR<50?'var(--orange)':'var(--red)'}"></div></div>
+      <div class="alert ${prS.cls}" style="margin-top:6px">${prS.msg}</div>
+    </div>
+    <div>
+      <div class="flex-between small mb8"><span>進貨佔比</span><span class="badge ${puS.cls}">${puS.txt}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(puR,100)}%;background:${puR<30?'var(--green)':puR<45?'var(--orange)':'var(--red)'}"></div></div>
+      <div class="alert ${puS.cls}" style="margin-top:6px">${puS.msg}</div>
+    </div>`;
+}
+function addMonthExpense(){
+  const name=document.getElementById('mo-exp-name').value.trim();
+  const amt=+document.getElementById('mo-exp-amt').value||0;
+  if(!name){ alert('請填寫項目名稱'); return; }
+  const k=moKey();
+  if(!DB.monthly[k]) DB.monthly[k]={expenses:[],netProfit:0,revenue:0,totalExp:0};
+  DB.monthly[k].expenses.push({name,amount:amt});
+  document.getElementById('mo-exp-name').value='';
+  document.getElementById('mo-exp-amt').value='';
+  scheduleSave(); renderMonthly();
+}
+function updMonthExp(i,v){ const k=moKey(); DB.monthly[k].expenses[i].amount=+v||0; scheduleSave(); renderMonthly(); }
+function removeMonthExp(i){ const k=moKey(); DB.monthly[k].expenses.splice(i,1); scheduleSave(); renderMonthly(); }
+async function saveMonthly(){ await saveDB(); const{y,m}=parseYM(moKey()); alert(`✅ ${y}年${m}月結算已儲存至 Firebase！`); }
+
+/* ════════════════════════════════════════
+   ✍️ 簽單管理
+════════════════════════════════════════ */
+function addSigning(){
+  const date=document.getElementById('sg-date').value;
+  const client=document.getElementById('sg-client').value;
+  const amount=+document.getElementById('sg-amount').value||0;
+  const collected=+document.getElementById('sg-collected').value||0;
+  const note=document.getElementById('sg-note').value;
+  if(!date||!client||amount<=0){ alert('請填寫日期、客戶和簽單金額'); return; }
+  DB.signing.push({id:Date.now(),date,client,amount,collected,note});
+  scheduleSave();
+  ['sg-client','sg-amount','sg-collected','sg-note'].forEach(id=>document.getElementById(id).value='');
+  renderSigning();
+}
+function renderSigning(){
+  const year=+document.getElementById('sg-year').value;
+  const month=+document.getElementById('sg-month').value;
+  const rows=DB.signing.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&(month===0||d.getMonth()+1===month);});
+  let ta=0,tc=0;
+  document.getElementById('sg-tbody').innerHTML=rows.map(r=>{
+    ta+=+r.amount||0; tc+=+r.collected||0;
+    const unc=(+r.amount||0)-(+r.collected||0);
+    return `<tr><td>${r.date}</td><td>${r.client}</td><td>$${fmt(r.amount)}</td><td class="text-green">$${fmt(r.collected)}</td><td class="${unc>0?'text-red':''}">$${fmt(unc)}</td><td>${r.note||''}</td><td><button class="btn btn-sm btn-danger" onclick="deleteSigning(${r.id})">刪除</button></td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">尚無簽單紀錄</td></tr>';
+  const unc=ta-tc;
+  document.getElementById('sg-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">簽單總額</div><div class="stat-value">$${fmt(ta)}</div></div>
+    <div class="stat-card"><div class="stat-label">已收金額</div><div class="stat-value green">$${fmt(tc)}</div></div>
+    <div class="stat-card"><div class="stat-label">未收金額</div><div class="stat-value ${unc>0?'red':''}">$${fmt(unc)}</div></div>`;
+}
+function deleteSigning(id){ if(!confirm('確認刪除？'))return; DB.signing=DB.signing.filter(r=>r.id!==id); scheduleSave(); renderSigning(); }
+
+/* ════════════════════════════════════════
+   📋 年度報告
+════════════════════════════════════════ */
+let rpTab='monthly';
+function setReportTab(t){
+  rpTab=t;
+  document.querySelectorAll('#page-report .section-tab').forEach((b,i)=>b.classList.toggle('active',['monthly','yearly'][i]===t));
+  document.getElementById('rp-monthly').style.display=t==='monthly'?'':'none';
+  document.getElementById('rp-yearly').style.display=t==='yearly'?'':'none';
+  if(t==='monthly') renderReport(); else renderYearlyReport();
+}
+function renderReport(){
+  const year=+document.getElementById('rp-year').value;
+  let prevRev=null; const cards=[],rows=[];
+  for(let m=1;m<=12;m++){
+    const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===m;});
+    const rev=days.reduce((s,r)=>s+(+r.total||0),0);
+    const k=ym(year,m); const mo=DB.monthly[k];
+    const exp=mo?+mo.totalExp||0:0; const profit=mo?+mo.netProfit:null;
+    const growth=prevRev!==null&&prevRev>0?Math.round((rev-prevRev)/prevRev*100):null;
+    cards.push(`<div class="month-cell ${rev>0?'has-data':''}">
+      <div class="month-cell-name">${m}月</div>
+      <div class="month-cell-value">${rev>0?'$'+fmt(rev):'-'}</div>
+      ${growth!==null?`<div class="${growth>=0?'growth-up':'growth-down'}">${growth>=0?'↑':'↓'}${Math.abs(growth)}%</div>`:''}
+    </div>`);
+    rows.push(`<tr>
+      <td>${m}月</td><td>${rev>0?'$'+fmt(rev):'-'}</td>
+      <td>${exp>0?'$'+fmt(exp):'-'}</td>
+      <td class="${profit!=null&&profit>=0?'text-green':'text-red'}">${profit!=null?(profit>=0?'+ ':'-')+' $'+fmt(Math.abs(profit)):'-'}</td>
+      <td>${growth!==null?`<span class="${growth>=0?'growth-up':'growth-down'}">${growth>=0?'↑':'↓'}${Math.abs(growth)}%</span>`:'-'}</td>
+    </tr>`);
+    if(rev>0) prevRev=rev;
+  }
+  document.getElementById('rp-month-cards').innerHTML=cards.join('');
+  document.getElementById('rp-tbody').innerHTML=rows.join('');
+}
+function renderYearlyReport(){
+  const ya=+document.getElementById('rp-yr-a').value;
+  const yb=+document.getElementById('rp-yr-b').value;
+  let html=`<table><thead><tr><th>月份</th><th>${ya}年</th><th>${yb}年</th><th>成長率</th></tr></thead><tbody>`;
+  let totA=0,totB=0;
+  for(let m=1;m<=12;m++){
+    const rA=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===ya&&d.getMonth()+1===m;}).reduce((s,r)=>s+(+r.total||0),0);
+    const rB=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===yb&&d.getMonth()+1===m;}).reduce((s,r)=>s+(+r.total||0),0);
+    totA+=rA; totB+=rB;
+    const gr=rB>0?Math.round((rA-rB)/rB*100):null;
+    html+=`<tr><td>${m}月</td><td>${rA>0?'$'+fmt(rA):'-'}</td><td>${rB>0?'$'+fmt(rB):'-'}</td><td>${gr!==null?`<span class="${gr>=0?'growth-up':'growth-down'}">${gr>=0?'↑':'↓'}${Math.abs(gr)}%</span>`:'-'}</td></tr>`;
+  }
+  const tg=totB>0?Math.round((totA-totB)/totB*100):null;
+  html+=`</tbody><tfoot><tr class="tfoot"><td>年度合計</td><td>$${fmt(totA)}</td><td>$${fmt(totB)}</td><td>${tg!==null?`<span class="${tg>=0?'growth-up':'growth-down'}">${tg>=0?'↑':'↓'}${Math.abs(tg)}%</span>`:'-'}</td></tr></tfoot></table>`;
+  document.getElementById('rp-yearly-content').innerHTML=html;
+}
+
+</script>
+</body>
+</html>
