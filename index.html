@@ -250,6 +250,28 @@ service cloud.firestore {
         </select>
       </div>
       <div class="stats-grid" id="ov-stats"></div>
+
+      <div id="ov-alert-box"></div>
+
+      <div class="card" id="ov-target-card">
+        <div class="card-title">每月營業目標設定</div>
+        <div class="flex gap8" style="flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:140px"><label>本月目標營業額</label><input type="number" id="ov-target-input" placeholder="輸入目標金額"></div>
+          <button class="btn btn-sm btn-gold" onclick="saveTarget()">儲存目標</button>
+        </div>
+        <div id="ov-target-progress" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card" id="ov-chart-card" style="display:none">
+        <div class="card-title">營收趨勢圖（全年）</div>
+        <div style="position:relative;height:240px"><canvas id="ov-trend-chart"></canvas></div>
+      </div>
+
+      <div class="card" id="ov-pie-card" style="display:none">
+        <div class="card-title">收入結構（簽單 vs 現金）</div>
+        <div style="position:relative;height:220px;max-width:300px;margin:0 auto"><canvas id="ov-pie-chart"></canvas></div>
+      </div>
+
       <div class="card" id="ov-monthly-grid" style="display:none">
         <div class="card-title">全年各月概況（點擊月份查看明細）</div>
         <div class="month-grid" id="ov-months"></div>
@@ -458,6 +480,17 @@ service cloud.firestore {
           <div id="rp-yearly-content"></div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title">📊 報表匯出 / 資料備份</div>
+        <div class="flex gap8" style="flex-wrap:wrap">
+          <button class="btn btn-sm btn-gold" onclick="exportExcel()">📊 匯出 Excel 報表</button>
+          <button class="btn btn-sm btn-outline" onclick="exportBackup()">💾 下載完整備份</button>
+          <button class="btn btn-sm btn-outline" id="btn-restore" onclick="document.getElementById('restore-file').click()">📥 還原備份</button>
+          <input type="file" id="restore-file" accept=".json" style="display:none" onchange="importBackup(event)">
+        </div>
+        <div class="small" style="margin-top:8px">Excel 匯出當前選擇年份的營業、進貨、簽單明細；備份檔含全部資料可跨裝置還原</div>
+      </div>
     </div>
 
       <!-- ───── 操作紀錄 ───── -->
@@ -491,6 +524,8 @@ service cloud.firestore {
 
 
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 /* ════════════════════════════════════════
    凱悅聚樂部 營運管理系統  v3.0  Firebase版
@@ -598,6 +633,7 @@ function ensureSchema(){
     C:['農產市場','魚市場']
   };
   if(!DB.logs) DB.logs = [];
+  if(!DB.targets) DB.targets = {};
 }
 
 /* ════════════════════════════════════════
@@ -796,6 +832,82 @@ async function doLogout(){
 
 
 /* ════════════════════════════════════════
+   📊 Excel 匯出 / 💾 備份 / 📥 還原
+════════════════════════════════════════ */
+function exportExcel(){
+  if(typeof XLSX==='undefined'){ alert('匯出元件載入中，請稍候再試'); return; }
+  const year=+document.getElementById('rp-year').value || new Date().getFullYear();
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: 每日營業
+  const dailyRows=DB.daily.filter(r=>new Date(r.date).getFullYear()===year)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>({日期:r.date,單號:r.num||'',總營業額:+r.total||0,簽單:+r.sign||0,現金:+r.cash||0,備註:r.note||''}));
+  if(dailyRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dailyRows), '每日營業');
+
+  // Sheet 2: 進貨
+  const catName={A:'A酒水',B:'B雜支',C:'C食材'};
+  const puRows=DB.purchases.filter(r=>new Date(r.date).getFullYear()===year)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>({日期:r.date,類別:catName[r.category]||r.category,廠商:r.vendor,品項:r.item||'',金額:+r.amount||0,備註:r.note||''}));
+  if(puRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(puRows), '進貨紀錄');
+
+  // Sheet 3: 簽單
+  const sgRows=DB.signing.filter(r=>new Date(r.date).getFullYear()===year)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>({日期:r.date,客戶:r.client,簽單金額:+r.amount||0,已收:+r.collected||0,未收:(+r.amount||0)-(+r.collected||0),備註:r.note||''}));
+  if(sgRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sgRows), '簽單紀錄');
+
+  // Sheet 4: 月度結算
+  const moRows=[];
+  for(let m=1;m<=12;m++){
+    const k=ym(year,m); const mo=DB.monthly[k];
+    if(mo) moRows.push({月份:`${year}年${m}月`,營業額:+mo.revenue||0,總支出:+mo.totalExp||0,實賺:+mo.netProfit||0});
+  }
+  if(moRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(moRows), '月度結算');
+
+  if(wb.SheetNames.length===0){ alert(`${year}年 尚無資料可匯出`); return; }
+  XLSX.writeFile(wb, `凱悅聚樂部_${year}年營運報表.xlsx`);
+  writeLog('儲存', `匯出 ${year}年 Excel 報表`);
+}
+
+function exportBackup(){
+  const data=JSON.stringify(DB,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,10);
+  a.href=url; a.download=`凱悅聚樂部_備份_${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  writeLog('儲存', '下載完整資料備份');
+}
+
+function importBackup(event){
+  if(!getPerms().write){ alert('您的權限無法還原資料'); event.target.value=''; return; }
+  const file=event.target.files[0];
+  if(!file) return;
+  if(!confirm('⚠️ 還原備份將覆蓋目前所有雲端資料，確定繼續？')){ event.target.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.daily && !data.purchases){ alert('備份檔格式不正確'); return; }
+      DB=data;
+      ensureSchema();
+      writeLog('修改', '還原資料備份（覆蓋全部資料）');
+      await saveDB();
+      alert('✅ 備份還原成功！');
+      showPage('overview');
+    }catch(err){
+      alert('還原失敗：檔案格式錯誤');
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+/* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
 window.addDaily = addDaily;
@@ -831,6 +943,10 @@ window.setReportTab = setReportTab;
 window.showPage = showPage;
 window.updMonthExp = updMonthExp;
 window.updPR = updPR;
+window.saveTarget = saveTarget;
+window.exportExcel = exportExcel;
+window.exportBackup = exportBackup;
+window.importBackup = importBackup;
 
 /* Firebase Auth 狀態監聽（自動登入） */
 onAuthStateChanged(auth, async user => {
@@ -913,6 +1029,116 @@ function showPage(id){
 /* ════════════════════════════════════════
    📊 總覽
 ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   📈 圖表 + 🔔 目標提醒
+════════════════════════════════════════ */
+let trendChart=null, pieChart=null;
+
+function targetKey(y,m){ return ym(y,m); }
+
+function saveTarget(){
+  if(!getPerms().write){ alert('您的權限無法設定目標'); return; }
+  const year=+document.getElementById('ov-year').value;
+  const month=+document.getElementById('ov-month').value;
+  if(!month){ alert('請先在上方選擇特定月份再設定目標'); return; }
+  const val=+document.getElementById('ov-target-input').value||0;
+  if(!DB.targets) DB.targets={};
+  DB.targets[targetKey(year,month)]=val;
+  writeLog('修改', `設定 ${year}年${month}月 營業目標 $${val.toLocaleString()}`);
+  scheduleSave();
+  renderOverview();
+  alert('✅ 目標已儲存');
+}
+
+function renderTargetAndAlert(year, month, totalRev){
+  const targetCard=document.getElementById('ov-target-card');
+  const alertBox=document.getElementById('ov-alert-box');
+  const progBox=document.getElementById('ov-target-progress');
+  if(!month){
+    targetCard.style.display='none';
+    alertBox.innerHTML='';
+    return;
+  }
+  targetCard.style.display='';
+  const target=(DB.targets&&DB.targets[targetKey(year,month)])||0;
+  document.getElementById('ov-target-input').value = target||'';
+
+  if(target>0){
+    const pct=Math.round(totalRev/target*100);
+    const reached=totalRev>=target;
+    const diff=Math.abs(target-totalRev);
+    // days info
+    const now=new Date();
+    const isCurrentMonth=(now.getFullYear()===year&&now.getMonth()+1===month);
+    const daysInMonth=new Date(year,month,0).getDate();
+    const dayNow=isCurrentMonth?now.getDate():daysInMonth;
+    const daysLeft=Math.max(daysInMonth-dayNow,0);
+    const dailyNeed=daysLeft>0&&!reached?Math.ceil(diff/daysLeft):0;
+
+    progBox.innerHTML=`
+      <div class="flex-between small mb8"><span>達成率 ${pct}%</span><span>目標 $${fmt(target)}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(pct,100)}%;background:${reached?'var(--green)':pct>=70?'var(--orange)':'var(--red)'}"></div></div>`;
+
+    if(reached){
+      alertBox.innerHTML=`<div class="alert alert-green">🎉 本月已達成目標！超出 $${fmt(totalRev-target)}</div>`;
+    } else if(isCurrentMonth && daysLeft>0){
+      alertBox.innerHTML=`<div class="alert alert-orange">🔔 距離目標還差 $${fmt(diff)}，剩 ${daysLeft} 天，平均每日需做 $${fmt(dailyNeed)}</div>`;
+    } else {
+      alertBox.innerHTML=`<div class="alert alert-red">⚠️ 本月未達標，差 $${fmt(diff)}（達成 ${pct}%）</div>`;
+    }
+  } else {
+    progBox.innerHTML='<div class="small">尚未設定本月目標</div>';
+    alertBox.innerHTML='';
+  }
+}
+
+function renderCharts(year, month){
+  const chartCard=document.getElementById('ov-chart-card');
+  const pieCard=document.getElementById('ov-pie-card');
+  if(typeof Chart==='undefined'){ return; }
+
+  // Trend chart - only in full year view
+  if(!month){
+    chartCard.style.display='';
+    const monthly=[];
+    for(let mm=1;mm<=12;mm++){
+      const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===mm;});
+      monthly.push(days.reduce((s,r)=>s+(+r.total||0),0));
+    }
+    const ctx=document.getElementById('ov-trend-chart').getContext('2d');
+    if(trendChart) trendChart.destroy();
+    trendChart=new Chart(ctx,{
+      type:'line',
+      data:{
+        labels:['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+        datasets:[{label:'營業額',data:monthly,borderColor:'#A8834E',backgroundColor:'rgba(168,131,78,0.1)',fill:true,tension:0.3,pointBackgroundColor:'#6B4F40'}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString()}}}}
+    });
+  } else {
+    chartCard.style.display='none';
+    if(trendChart){ trendChart.destroy(); trendChart=null; }
+  }
+
+  // Pie chart - sign vs cash
+  const filtered=DB.daily.filter(r=>{const d=new Date(r.date);return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;});
+  const totalSign=filtered.reduce((s,r)=>s+(+r.sign||0),0);
+  const totalCash=filtered.reduce((s,r)=>s+(+r.cash||0),0);
+  if(totalSign+totalCash>0){
+    pieCard.style.display='';
+    const ctx2=document.getElementById('ov-pie-chart').getContext('2d');
+    if(pieChart) pieChart.destroy();
+    pieChart=new Chart(ctx2,{
+      type:'doughnut',
+      data:{labels:['簽單','現金'],datasets:[{data:[totalSign,totalCash],backgroundColor:['#C0784A','#5A8A6A']}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+    });
+  } else {
+    pieCard.style.display='none';
+    if(pieChart){ pieChart.destroy(); pieChart=null; }
+  }
+}
+
 function renderOverview(){
   const year=+document.getElementById('ov-year').value;
   const month=+document.getElementById('ov-month').value;
@@ -926,6 +1152,9 @@ function renderOverview(){
     <div class="stat-card"><div class="stat-label">總營業額</div><div class="stat-value">$${fmt(rev)}</div></div>
     <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${fmt(sign)}</div></div>
     <div class="stat-card"><div class="stat-label">現金金額</div><div class="stat-value">$${fmt(cash)}</div></div>`;
+
+  renderTargetAndAlert(year, month, rev);
+  renderCharts(year, month);
   const grid=document.getElementById('ov-monthly-grid');
   const tbl=document.getElementById('ov-daily-table');
   if(!month){
