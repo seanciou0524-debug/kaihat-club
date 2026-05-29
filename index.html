@@ -198,23 +198,14 @@ service cloud.firestore {
   <div class="login-box">
     <div class="login-logo">👑</div>
     <div class="login-title">凱悅聚樂部</div>
-    <div class="login-sub">營運管理系統 ❤️</div>
-    <div class="login-tabs">
-      <button class="login-tab active" onclick="switchAuthTab('login')">登入</button>
-      <button class="login-tab" onclick="switchAuthTab('register')">註冊帳號</button>
-    </div>
+    <div class="login-sub">KAIHAT CLUB · 營運管理系統 ❤️</div>
     <div id="login-form">
       <div class="login-form-group"><label>帳號</label><input type="text" id="l-user" placeholder="請輸入帳號" autocomplete="username"></div>
       <div class="login-form-group"><label>密碼</label><input type="password" id="l-pass" placeholder="請輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <button class="login-btn" onclick="doLogin()">登　入</button>
     </div>
-    <div id="register-form" class="hidden">
-      <div class="login-form-group"><label>帳號</label><input type="text" id="r-user" placeholder="設定帳號（2-20字元）" autocomplete="username"></div>
-      <div class="login-form-group"><label>密碼</label><input type="password" id="r-pass" placeholder="設定密碼" autocomplete="new-password"></div>
-      <div class="login-form-group"><label>確認密碼</label><input type="password" id="r-pass2" placeholder="再次輸入密碼" autocomplete="new-password"></div>
-      <button class="login-btn" onclick="doRegister()">建立帳號</button>
-    </div>
     <div id="auth-msg" class="login-msg"></div>
+    <div style="margin-top:16px;font-size:11px;color:var(--text3)">帳號由管理員統一開通，如需登入請聯繫管理員</div>
   </div>
 </div>
 
@@ -227,6 +218,7 @@ service cloud.firestore {
     </div>
     <div class="header-user">
       <span id="cloud-status" class="cloud-indicator">雲端</span>
+      <span id="hdr-role" style="font-size:10px;padding:2px 8px;background:var(--gold2);color:var(--milk);border-radius:20px"></span>
       <span id="hdr-username"></span>
       <button class="logout-btn" onclick="doLogout()">登出</button>
     </div>
@@ -240,6 +232,7 @@ service cloud.firestore {
     <button class="nav-btn" onclick="showPage('monthly')">📈 月度結算</button>
     <button class="nav-btn" onclick="showPage('signing')">✍️ 簽單管理</button>
     <button class="nav-btn" onclick="showPage('report')">📋 年度報告</button>
+    <button class="nav-btn" id="nav-log" onclick="showPage('log')" style="display:none">🔍 操作紀錄</button>
   </div>
 
   <div class="content">
@@ -467,7 +460,33 @@ service cloud.firestore {
       </div>
     </div>
 
-  </div><!-- /content -->
+      <!-- ───── 操作紀錄 ───── -->
+    <div id="page-log" class="hidden">
+      <div class="card">
+        <div class="card-title">操作紀錄</div>
+        <div class="month-selector">
+          <select id="log-filter">
+            <option value="">全部動作</option>
+            <option value="新增">新增</option>
+            <option value="刪除">刪除</option>
+            <option value="修改">修改</option>
+            <option value="登入">登入</option>
+            <option value="儲存">儲存</option>
+          </select>
+          <select id="log-user-filter">
+            <option value="">全部帳號</option>
+          </select>
+          <button class="btn btn-sm btn-danger" onclick="clearLogs()">清除紀錄</button>
+        </div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>時間</th><th>帳號</th><th>角色</th><th>動作</th><th>說明</th></tr></thead>
+          <tbody id="log-tbody"></tbody>
+        </table></div>
+        <div id="log-empty" class="small text-center" style="padding:16px;display:none">尚無操作紀錄</div>
+      </div>
+    </div>
+
+</div><!-- /content -->
 </div><!-- /main-app -->
 
 
@@ -483,12 +502,12 @@ service cloud.firestore {
    建立專案 → 新增 Web App → 複製設定貼入
 ══════════════════════════════════════ */
 const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyDjs7ToBM8OxHv9PRHDP-FdAVlVfTJcotQ",
-  authDomain:        "regency-club-8cc34.firebaseapp.com",
-  projectId:         "regency-club-8cc34",
-  storageBucket:     "regency-club-8cc34.firebasestorage.app",
-  messagingSenderId: "257354255726",
-  appId:             "1:257354255726:web:2fd8f3153173fc96ec457f"
+  apiKey:            "AIzaSyCNA884sM69VbDuFdz2xltiuqBTIG7QWaw",
+  authDomain:        "regency-club-774a0.firebaseapp.com",
+  projectId:         "regency-club-774a0",
+  storageBucket:     "regency-club-774a0.firebasestorage.app",
+  messagingSenderId: "618772685441",
+  appId:             "1:618772685441:web:f9e1eabffe7557c3dc6380"
 };
 
 /* ══ ② Firebase SDK（從 CDN 載入）══════ */
@@ -516,7 +535,7 @@ let unsubSnapshot = null;   // Firestore 即時監聽 unsubscribe fn
    雲端 I/O（Firestore）
    文件路徑：users/{uid}/data/main
 ════════════════════════════════════════ */
-function dbRef(uid){ return doc(db, 'users', uid, 'data', 'main'); }
+function dbRef(){ return doc(db, 'shared', 'kaihat', 'data', 'main'); }
 
 function setCloudStatus(s){
   const el = document.getElementById('cloud-status');
@@ -526,10 +545,10 @@ function setCloudStatus(s){
 }
 
 async function saveDB(){
-  if(!currentUser) return;
+  if(!currentUser || !canWrite()) return;
   setCloudStatus('saving');
   try{
-    await setDoc(dbRef(currentUser.uid), { payload: JSON.stringify(DB), updatedAt: Date.now() });
+    await setDoc(dbRef(), { payload: JSON.stringify(DB), updatedAt: Date.now() });
     setCloudStatus('saved');
   }catch(e){
     console.error('Firestore save error', e);
@@ -541,7 +560,7 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDB,
 async function loadDB(){
   if(!currentUser) return;
   try{
-    const snap = await getDoc(dbRef(currentUser.uid));
+    const snap = await getDoc(dbRef());
     DB = snap.exists() ? JSON.parse(snap.data().payload) : {};
   }catch(e){ DB = {}; }
   ensureSchema();
@@ -550,7 +569,7 @@ async function loadDB(){
 /* 即時監聽（多裝置同步） */
 function startRealtimeSync(){
   if(unsubSnapshot) unsubSnapshot();
-  unsubSnapshot = onSnapshot(dbRef(currentUser.uid), snap => {
+  unsubSnapshot = onSnapshot(dbRef(), snap => {
     if(!snap.exists()) return;
     try{
       const remote = JSON.parse(snap.data().payload);
@@ -578,6 +597,70 @@ function ensureSchema(){
     B:['文具行','清潔用品'],
     C:['農產市場','魚市場']
   };
+  if(!DB.logs) DB.logs = [];
+}
+
+/* ════════════════════════════════════════
+   🔍 操作紀錄系統
+════════════════════════════════════════ */
+function writeLog(action, detail){
+  if(!currentUser) return;
+  const username = currentUser.email.replace('@kaihat.app','');
+  const entry = {
+    id: Date.now(),
+    time: new Date().toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    user: username,
+    role: ROLE_LABELS[currentRole] || currentRole,
+    action,
+    detail
+  };
+  if(!DB.logs) DB.logs = [];
+  DB.logs.unshift(entry); // newest first
+  if(DB.logs.length > 500) DB.logs = DB.logs.slice(0, 500); // keep last 500
+}
+
+function renderLog(){
+  if(!DB.logs || !DB.logs.length){
+    document.getElementById('log-empty').style.display='';
+    document.getElementById('log-tbody').innerHTML='';
+    return;
+  }
+  document.getElementById('log-empty').style.display='none';
+  const filterAction = document.getElementById('log-filter').value;
+  const filterUser   = document.getElementById('log-user-filter').value;
+
+  // populate user filter
+  const users = [...new Set(DB.logs.map(l=>l.user))];
+  const userSel = document.getElementById('log-user-filter');
+  const curVal = userSel.value;
+  userSel.innerHTML = '<option value="">全部帳號</option>' + users.map(u=>`<option value="${u}" ${u===curVal?'selected':''}>${u}</option>`).join('');
+
+  let logs = DB.logs;
+  if(filterAction) logs = logs.filter(l=>l.action===filterAction);
+  if(filterUser)   logs = logs.filter(l=>l.user===filterUser);
+
+  const actionColors = {
+    '新增':'badge-green','刪除':'badge-red','修改':'badge-orange',
+    '登入':'badge-gold','儲存':'badge-gold'
+  };
+
+  document.getElementById('log-tbody').innerHTML = logs.map(l=>`
+    <tr>
+      <td style="white-space:nowrap;font-size:11px">${l.time}</td>
+      <td><strong>${l.user}</strong></td>
+      <td style="font-size:10px">${l.role||''}</td>
+      <td><span class="badge ${actionColors[l.action]||'badge-gold'}">${l.action}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${l.detail}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="text-center small" style="padding:12px">無符合紀錄</td></tr>';
+}
+
+function clearLogs(){
+  if(!confirm('確認清除所有操作紀錄？此動作無法復原')) return;
+  writeLog('修改','清除所有操作紀錄');
+  DB.logs = [];
+  writeLog('修改','操作紀錄已清除');
+  scheduleSave();
+  renderLog();
 }
 
 /* ════════════════════════════════════════
@@ -586,6 +669,67 @@ function ensureSchema(){
    帳號格式：系統自動在帳號後加 @kaihat.app
 ════════════════════════════════════════ */
 function toEmail(user){ return user.trim().toLowerCase() + '@kaihat.app'; }
+
+/* ════════════════════════════════════════
+   🔐 權限系統
+   ROLES: admin / accounting / manager / shareholder
+   修改帳號對應角色請編輯 ROLE_MAP
+════════════════════════════════════════ */
+const ROLE_MAP = {
+  'admin':        'admin',        // 👑 管理員 - 全部功能
+  'accounting':   'accounting',   // 📊 會計   - 可新增修改所有資料
+  'manager':      'manager',      // 🏢 經理   - 可查看 + 新增每日營業
+  'shareholder1': 'shareholder',  // 👁 股東1  - 只能看報表總覽
+  'shareholder2': 'shareholder',  // 👁 股東2  - 只能看報表總覽
+};
+
+const ROLE_LABELS = {
+  admin:       '👑 管理員',
+  accounting:  '📊 會計',
+  manager:     '🏢 經理',
+  shareholder: '👁 股東',
+};
+
+// 權限定義
+const PERMISSIONS = {
+  admin:       { write:true,  dailyAdd:true,  purchaseAdd:true,  payrollEdit:true,  monthlyEdit:true,  signingAdd:true,  navAll:true  },
+  accounting:  { write:true,  dailyAdd:true,  purchaseAdd:true,  payrollEdit:true,  monthlyEdit:true,  signingAdd:true,  navAll:true  },
+  manager:     { write:false, dailyAdd:true,  purchaseAdd:false, payrollEdit:false, monthlyEdit:false, signingAdd:false, navAll:true  },
+  shareholder: { write:false, dailyAdd:false, purchaseAdd:false, payrollEdit:false, monthlyEdit:false, signingAdd:false, navAll:false },
+};
+
+let currentRole = 'shareholder';
+
+function getUserRole(email){
+  const username = email.replace('@kaihat.app','').toLowerCase();
+  return ROLE_MAP[username] || 'shareholder';
+}
+
+function getPerms(){ return PERMISSIONS[currentRole] || PERMISSIONS.shareholder; }
+function canWrite(){ return getPerms().write; }
+
+function applyRoleUI(){
+  const p = getPerms();
+  const navBtns = document.querySelectorAll('.nav-btn');
+  if(!p.navAll){
+    [1,2,3,4,5].forEach(i=>{ if(navBtns[i]) navBtns[i].style.display='none'; });
+  } else {
+    navBtns.forEach(b=>b.style.display='');
+  }
+  // Log nav - admin only
+  const logNav = document.getElementById('nav-log');
+  if(logNav) logNav.style.display = currentRole==='admin' ? '' : 'none';
+  // role badge
+  const roleEl = document.getElementById('hdr-role');
+  if(roleEl) roleEl.textContent = ROLE_LABELS[currentRole]||'';
+}
+
+function lockForm(selector){
+  document.querySelectorAll(selector).forEach(el=>{
+    if(el.tagName==='BUTTON') el.disabled=true, el.style.opacity='0.3', el.style.cursor='not-allowed';
+    if(['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) el.readOnly=true, el.style.background='var(--milk2)';
+  });
+}
 
 function switchAuthTab(t){
   document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('active',['login','register'][i]===t));
@@ -626,10 +770,9 @@ async function doLogin(){
   msg.className='login-msg'; msg.textContent='登入中...';
   try{
     await signInWithEmailAndPassword(auth, toEmail(user), pass);
-    // onAuthStateChanged 會接手後續
   }catch(e){
     const errMap = {
-      'auth/user-not-found':'帳號不存在，請先註冊',
+      'auth/user-not-found':'帳號不存在，請聯繫管理員',
       'auth/wrong-password':'密碼錯誤',
       'auth/invalid-credential':'帳號或密碼錯誤',
       'auth/too-many-requests':'登入失敗次數過多，請稍後再試'
@@ -655,18 +798,22 @@ async function doLogout(){
 onAuthStateChanged(auth, async user => {
   if(user){
     currentUser = user;
+    currentRole = getUserRole(user.email);
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     const displayName = user.email.replace('@kaihat.app','');
     document.getElementById('hdr-username').textContent = displayName;
     setCloudStatus('saving');
     await loadDB();
+    writeLog('登入', '帳號登入系統');
+    await saveDB();
     setCloudStatus('saved');
     startRealtimeSync();
     initYearSelects();
     setDefaultDate('d-date');
     setDefaultDate('pu-date');
     setDefaultDate('sg-date');
+    applyRoleUI();
     showPage('overview');
   } else {
     document.getElementById('login-screen').classList.remove('hidden');
@@ -708,6 +855,7 @@ function refreshCurrentPage(id){
   else if(id==='monthly') renderMonthly();
   else if(id==='signing') renderSigning();
   else if(id==='report') renderReport();
+  else if(id==='log') renderLog();
 }
 
 /* ════════════════════════════════════════
@@ -717,10 +865,11 @@ function showPage(id){
   document.querySelectorAll('[id^="page-"]').forEach(el=>el.classList.add('hidden'));
   document.getElementById('page-'+id).classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  const map={overview:0,daily:1,purchase:2,payroll:3,monthly:4,signing:5,report:6};
+  const map={overview:0,daily:1,purchase:2,payroll:3,monthly:4,signing:5,report:6,log:7};
   document.querySelectorAll('.nav-btn')[map[id]]?.classList.add('active');
   refreshCurrentPage(id);
   if(id==='purchase'){ setPurchaseTab('A'); renderVendors(); }
+  if(id==='log') renderLog();
 }
 
 /* ════════════════════════════════════════
@@ -783,6 +932,7 @@ function selOvMonth(y,m){ document.getElementById('ov-month').value=m; renderOve
    💰 每日營業
 ════════════════════════════════════════ */
 function addDaily(){
+  if(!getPerms().dailyAdd){ alert('您的權限無法新增紀錄'); return; }
   const date=document.getElementById('d-date').value;
   const num=document.getElementById('d-num').value;
   const total=+document.getElementById('d-total').value||0;
@@ -790,6 +940,7 @@ function addDaily(){
   const note=document.getElementById('d-note').value;
   if(!date||total<=0){ alert('請填寫日期和總營業額'); return; }
   DB.daily.push({id:Date.now(),date,num,total,sign,cash:total-sign,note});
+  writeLog('新增', `每日營業 ${date} 總額 $${total.toLocaleString()}`);
   scheduleSave();
   ['d-num','d-total','d-sign','d-cash','d-note'].forEach(id=>document.getElementById(id).value='');
   renderDailyList();
@@ -817,7 +968,10 @@ function renderDailyList(){
   document.getElementById('dl-t-sign').textContent='$'+fmt(ts);
   document.getElementById('dl-t-cash').textContent='$'+fmt(tc);
 }
-function deleteDaily(id){ if(!confirm('確認刪除此筆紀錄？'))return; DB.daily=DB.daily.filter(r=>r.id!==id); scheduleSave(); renderDailyList(); }
+function deleteDaily(id){ if(!canWrite()){alert('您的權限無法刪除');return;} if(!confirm('確認刪除此筆紀錄？'))return;
+  const r=DB.daily.find(x=>x.id===id);
+  writeLog('刪除', `每日營業 ${r?r.date:''} 總額 $${r?Number(r.total).toLocaleString():''}`);
+  DB.daily=DB.daily.filter(r=>r.id!==id); scheduleSave(); renderDailyList(); }
 
 /* ════════════════════════════════════════
    📦 進貨紀錄
@@ -842,6 +996,7 @@ function renderVendors(){
 }
 function checkVendorOther(){ document.getElementById('pu-vendor-other-row').classList.toggle('hidden',document.getElementById('pu-vendor').value!=='__other__'); }
 function addPurchase(){
+  if(!getPerms().purchaseAdd){ alert('您的權限無法新增進貨紀錄'); return; }
   const date=document.getElementById('pu-date').value;
   let vendor=document.getElementById('pu-vendor').value;
   if(vendor==='__other__'){
@@ -857,6 +1012,7 @@ function addPurchase(){
   const note=document.getElementById('pu-note').value;
   if(!date||!vendor||amount<=0){ alert('請填寫日期、廠商和金額'); return; }
   DB.purchases.push({id:Date.now(),date,category:puTab,vendor,item,amount,note});
+  writeLog('新增', `進貨 ${puTab} 類 ${vendor} ${item} $${amount.toLocaleString()}`);
   scheduleSave();
   ['pu-item','pu-amount','pu-note'].forEach(id=>document.getElementById(id).value='');
   renderPurchase();
@@ -871,7 +1027,10 @@ function renderPurchase(){
   }).join('')||'<tr><td colspan="6" class="text-center small" style="padding:16px">本月尚無進貨紀錄</td></tr>';
   document.getElementById('pu-t-amount').textContent='$'+fmt(ta);
 }
-function deletePurchase(id){ if(!confirm('確認刪除？'))return; DB.purchases=DB.purchases.filter(r=>r.id!==id); scheduleSave(); renderPurchase(); }
+function deletePurchase(id){ if(!canWrite()){alert('您的權限無法刪除');return;} if(!confirm('確認刪除？'))return;
+  const r=DB.purchases.find(x=>x.id===id);
+  writeLog('刪除', `進貨 ${r?r.category:''} 類 ${r?r.vendor:''} $${r?Number(r.amount).toLocaleString():''}`);
+  DB.purchases=DB.purchases.filter(r=>r.id!==id); scheduleSave(); renderPurchase(); }
 function renderPurchaseSummary(){
   const year=+document.getElementById('pu-sum-year').value;
   const month=+document.getElementById('pu-sum-month').value;
@@ -992,7 +1151,10 @@ function renderPayroll(){
     </div>`;
   }
 }
-function updPR(t,i,f,v){ const k=prKey(); DB.payroll[k][t][i][f]=v; scheduleSave(); renderPayroll(); }
+function updPR(t,i,f,v){ if(!getPerms().payrollEdit){alert('您的權限無法修改薪資');return;}
+  const k=prKey(); DB.payroll[k][t][i][f]=v;
+  writeLog('修改', `人事薪資 ${k} ${t}類 欄位${f}=${v}`);
+  scheduleSave(); renderPayroll(); }
 function removeP(t,i){ const k=prKey(); DB.payroll[k][t].splice(i,1); scheduleSave(); renderPayroll(); }
 function addPA(){ const k=prKey(); DB.payroll[k].A.push({name:'',daily:0,days:0}); scheduleSave(); renderPayroll(); }
 function addPB(){ const k=prKey(); DB.payroll[k].B.push({name:'',salary:0}); scheduleSave(); renderPayroll(); }
@@ -1055,6 +1217,7 @@ function renderMonthly(){
     </div>`;
 }
 function addMonthExpense(){
+  if(!getPerms().monthlyEdit){ alert('您的權限無法修改月度結算'); return; }
   const name=document.getElementById('mo-exp-name').value.trim();
   const amt=+document.getElementById('mo-exp-amt').value||0;
   if(!name){ alert('請填寫項目名稱'); return; }
@@ -1067,12 +1230,18 @@ function addMonthExpense(){
 }
 function updMonthExp(i,v){ const k=moKey(); DB.monthly[k].expenses[i].amount=+v||0; scheduleSave(); renderMonthly(); }
 function removeMonthExp(i){ const k=moKey(); DB.monthly[k].expenses.splice(i,1); scheduleSave(); renderMonthly(); }
-async function saveMonthly(){ await saveDB(); const{y,m}=parseYM(moKey()); alert(`✅ ${y}年${m}月結算已儲存至 Firebase！`); }
+async function saveMonthly(){
+  const{y,m}=parseYM(moKey());
+  writeLog('儲存', `${y}年${m}月 月度結算`);
+  await saveDB();
+  alert(`✅ ${y}年${m}月結算已儲存至 Firebase！`);
+}
 
 /* ════════════════════════════════════════
    ✍️ 簽單管理
 ════════════════════════════════════════ */
 function addSigning(){
+  if(!getPerms().signingAdd){ alert('您的權限無法新增簽單'); return; }
   const date=document.getElementById('sg-date').value;
   const client=document.getElementById('sg-client').value;
   const amount=+document.getElementById('sg-amount').value||0;
@@ -1080,6 +1249,7 @@ function addSigning(){
   const note=document.getElementById('sg-note').value;
   if(!date||!client||amount<=0){ alert('請填寫日期、客戶和簽單金額'); return; }
   DB.signing.push({id:Date.now(),date,client,amount,collected,note});
+  writeLog('新增', `簽單 ${client} $${amount.toLocaleString()}`);
   scheduleSave();
   ['sg-client','sg-amount','sg-collected','sg-note'].forEach(id=>document.getElementById(id).value='');
   renderSigning();
@@ -1100,7 +1270,10 @@ function renderSigning(){
     <div class="stat-card"><div class="stat-label">已收金額</div><div class="stat-value green">$${fmt(tc)}</div></div>
     <div class="stat-card"><div class="stat-label">未收金額</div><div class="stat-value ${unc>0?'red':''}">$${fmt(unc)}</div></div>`;
 }
-function deleteSigning(id){ if(!confirm('確認刪除？'))return; DB.signing=DB.signing.filter(r=>r.id!==id); scheduleSave(); renderSigning(); }
+function deleteSigning(id){ if(!canWrite()){alert('您的權限無法刪除');return;} if(!confirm('確認刪除？'))return;
+  const r=DB.signing.find(x=>x.id===id);
+  writeLog('刪除', `簽單 ${r?r.client:''} $${r?Number(r.amount).toLocaleString():''}`);
+  DB.signing=DB.signing.filter(r=>r.id!==id); scheduleSave(); renderSigning(); }
 
 /* ════════════════════════════════════════
    📋 年度報告
