@@ -794,6 +794,44 @@ async function doLogout(){
   document.getElementById('auth-msg').textContent='';
 }
 
+
+/* ════════════════════════════════════════
+   暴露函數給 HTML onclick 使用（type=module 必須）
+════════════════════════════════════════ */
+window.addDaily = addDaily;
+window.addMonthExpense = addMonthExpense;
+window.addPA = addPA;
+window.addPB = addPB;
+window.addPI = addPI;
+window.addPurchase = addPurchase;
+window.addSigning = addSigning;
+window.checkVendorOther = checkVendorOther;
+window.clearLogs = clearLogs;
+window.deleteDaily = deleteDaily;
+window.deletePurchase = deletePurchase;
+window.deleteSigning = deleteSigning;
+window.doLogin = doLogin;
+window.doLogout = doLogout;
+window.removeMonthExp = removeMonthExp;
+window.removeP = removeP;
+window.renderDailyList = renderDailyList;
+window.renderMonthly = renderMonthly;
+window.renderOverview = renderOverview;
+window.renderPayroll = renderPayroll;
+window.renderPurchase = renderPurchase;
+window.renderPurchaseSummary = renderPurchaseSummary;
+window.renderReport = renderReport;
+window.renderSigning = renderSigning;
+window.renderYearlyReport = renderYearlyReport;
+window.saveMonthly = saveMonthly;
+window.selOvMonth = selOvMonth;
+window.setPayrollTab = setPayrollTab;
+window.setPurchaseTab = setPurchaseTab;
+window.setReportTab = setReportTab;
+window.showPage = showPage;
+window.updMonthExp = updMonthExp;
+window.updPR = updPR;
+
 /* Firebase Auth 狀態監聽（自動登入） */
 onAuthStateChanged(auth, async user => {
   if(user){
