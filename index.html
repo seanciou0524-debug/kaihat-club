@@ -3044,7 +3044,6 @@ function renderMonthly(){
 
   // Save monthly snapshot to DB for report
   if(!DB.monthly) DB.monthly={};
-  } catch(err){ console.error('renderMonthly ERROR:', err.message, err); alert('月度結算錯誤: '+err.message); return; }
   DB.monthly[k]={
     revenue, cashRev, signRev, workDays, billCount, avgDaily,
     purchaseTotal, puA, puB, puC,
@@ -3055,6 +3054,7 @@ function renderMonthly(){
     moSignTotal, moSignOnly, moSignAdvance, moCollectTotal, moSignUnpaid,
     updatedAt: Date.now()
   };
+  } catch(err){ console.error('renderMonthly ERROR:', err.message, err); alert('月度結算錯誤: '+err.message); }
 }
 
 async function saveMonthly(){
