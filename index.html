@@ -574,6 +574,20 @@ service cloud.firestore {
         <select id="mo-month" onchange="renderMonthly()"></select>
       </div>
 
+      <!-- 期初現金 / 上月結餘 -->
+      <div class="card" id="mo-carryover-card">
+        <div class="flex-between">
+          <div>
+            <div class="card-title" style="margin-bottom:4px">💰 上月結餘現金</div>
+            <div style="font-size:11px;color:var(--text2)" id="mo-carryover-hint">自動從上月結算帶入，或手動輸入覆蓋</div>
+          </div>
+          <div class="flex gap8" style="align-items:center">
+            <input type="number" id="mo-carryover-input" placeholder="0" style="width:140px;font-size:16px;font-weight:bold;text-align:right" oninput="saveCarryover()">
+            <span style="font-size:12px;color:var(--text3)">元</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 月度總覽統計 -->
       <div class="stats-grid" id="mo-stats"></div>
 
@@ -966,6 +980,7 @@ function ensureSchema(){
   if(!DB.dailyExpenses) DB.dailyExpenses = [];
   if(!DB.signBills) DB.signBills = [];
   if(!DB.sgSettings) DB.sgSettings = { overdueDays: 30 };
+  if(!DB.carryover) DB.carryover = {}; // {YYYY-MM: amount}
   if(!DB.signBillDeleted) DB.signBillDeleted = [];
 }
 
@@ -1644,6 +1659,70 @@ function setReportTab(t){
   if(t==='monthly') renderReport(); else renderYearlyReport();
 }
 
+/* ════════════════════════════════════════
+   💰 上月結餘現金管理
+════════════════════════════════════════ */
+function getCarryoverKey(y,m){
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+
+function getPrevMonthCarryover(y,m){
+  // Get previous month's carryover
+  let prevY=y, prevM=m-1;
+  if(prevM===0){ prevM=12; prevY--; }
+  const prevKey=getCarryoverKey(prevY,prevM);
+  // First check if previous month has a saved carryover result
+  if(DB.carryover && DB.carryover[prevKey+'_result'] !== undefined){
+    return +DB.carryover[prevKey+'_result']||0;
+  }
+  // Otherwise try to calculate from previous month's data
+  return calcMonthActualCash(prevY, prevM);
+}
+
+function calcMonthActualCash(y, m){
+  // Calculate actual cash for given month (without carryover)
+  const prefix=`${y}-${String(m).padStart(2,'0')}`;
+  const bills=(DB.daily||[]).filter(r=>r.date&&r.date.startsWith(prefix));
+  const cashRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
+  const signCollect=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date&&p.date.startsWith(prefix))
+    .reduce((ss,p)=>ss+(+p.amount||0),0),0);
+  const purchases=(DB.purchases||[]).filter(r=>r.date&&r.date.startsWith(prefix)).reduce((s,r)=>s+(+r.amount||0),0);
+  const payroll=(DB.dailyPayroll||[]).filter(r=>r.date&&r.date.startsWith(prefix)).reduce((s,r)=>s+(+r.amount||0),0);
+  const expenses=(DB.dailyExpenses||[]).filter(r=>r.date&&r.date.startsWith(prefix)).reduce((s,r)=>s+(+r.amount||0),0);
+  const cashAdv=bills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  const signAdv=bills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
+  return cashRev + signCollect - purchases - payroll - expenses - cashAdv - signAdv;
+}
+
+function saveCarryover(){
+  const k=moKey();
+  const val=+document.getElementById('mo-carryover-input').value||0;
+  if(!DB.carryover) DB.carryover={};
+  DB.carryover[k]=val; // manually set carryover for this month
+  scheduleSave();
+  renderMonthly(); // recalc with new carryover
+}
+
+function loadCarryoverInput(y,m){
+  const k=getCarryoverKey(y,m);
+  const el=document.getElementById('mo-carryover-input');
+  if(!el) return;
+  // Check if manually set
+  if(DB.carryover && DB.carryover[k] !== undefined){
+    el.value=DB.carryover[k];
+    document.getElementById('mo-carryover-hint').textContent='✏️ 手動設定';
+  } else {
+    // Auto from previous month
+    const auto=getPrevMonthCarryover(y,m);
+    el.value=auto||'';
+    const prevM=m===1?12:m-1;
+    const prevY=m===1?y-1:y;
+    document.getElementById('mo-carryover-hint').textContent=
+      auto!==0?`自動帶入：${prevY}年${prevM}月結餘 $${fmt(auto)}`:'上月無結算資料，請手動輸入';
+  }
+}
+
 function updatePayTypeLabel(){ /* radio choice UI feedback only */ }
 
 function calcColFromDiscount(){
@@ -1725,6 +1804,7 @@ window.loadClientBills = loadClientBills;
 window.calcColSelected = calcColSelected;
 window.calcColDiscount = calcColDiscount;
 window.updatePayTypeLabel = updatePayTypeLabel;
+window.saveCarryover = saveCarryover;
 window.calcColFromDiscount = calcColFromDiscount;
 window.saveCollection = saveCollection;
 window.renderSgHistory = renderSgHistory;
@@ -2384,6 +2464,12 @@ function renderDailyList(){
     (DB.dailyPayroll||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0)+
     (DB.dailyExpenses||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0);
   // Month actual cash
+  // Get carryover for this month
+  const moKey2=`${year}-${String(month).padStart(2,'0')}`;
+  const moCarryoverDay=DB.carryover&&DB.carryover[moKey2]!==undefined
+    ? +DB.carryover[moKey2]||0
+    : calcMonthActualCash(year===new Date().getFullYear()&&month===new Date().getMonth()+1?year:year, month===1?12:month-1) ;
+  // Note: use 0 if no prev data to avoid confusion in daily view
   const moActualCashCard=moCash + moSignCollectMo - moCashExpenses - moCashAdvance - moSignAdv;
 
   const moStats=document.getElementById('daily-month-stats');
@@ -2397,7 +2483,7 @@ function renderDailyList(){
     <div class="stat-card" style="grid-column:span 2;background:${moActualCashCard>=0?'#D4EAD4':'#EAD4D4'};border-color:${moActualCashCard>=0?'var(--green)':'var(--red)'}">
       <div class="stat-label">💵 月帳上實際現金</div>
       <div class="stat-value ${moActualCashCard>=0?'green':'red'}">${moActualCashCard>=0?'＋':'－'} $${Math.abs(moActualCashCard).toLocaleString()}</div>
-      <div class="stat-sub">現金收入${moSignCollectMo>0?'＋簽單還款':''} － 進貨 － 人事 － 其他 － 借支</div>
+      <div class="stat-sub">${moCarryover!==0?'上月結餘$'+fmt(moCarryover)+'＋':''}現金收入${moSignCollectMo>0?'＋還款':''} － 支出 － 借支</div>
     </div>`;
   }
 
@@ -2877,6 +2963,7 @@ function moKey(){ return ym(document.getElementById('mo-year').value, document.g
 function renderMonthly(){
   try{
   const k=moKey(); const{y,m}=parseYM(k);
+  loadCarryoverInput(y,m);
 
   // ── 月營業資料 ──
   const bills=(DB.daily||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
@@ -2925,7 +3012,12 @@ function renderMonthly(){
   const moSignAdvance=bills2.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
 
   // ── 月帳上現金 ──
-  const moActualCash=cashRev + moSignCollect - (purchaseTotal+payrollTotal+expenseTotal) - moCashAdvance - moSignAdvance; // 簽單借支現金已付出
+  // Get carryover (manual override or auto from prev month)
+  const moCarryKey=getCarryoverKey(y,m);
+  const moCarryover=DB.carryover&&DB.carryover[moCarryKey]!==undefined
+    ? +DB.carryover[moCarryKey]||0
+    : getPrevMonthCarryover(y,m);
+  const moActualCash=moCarryover + cashRev + moSignCollect - (purchaseTotal+payrollTotal+expenseTotal) - moCashAdvance - moSignAdvance;
 
   document.getElementById('mo-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${fmt(revenue)}</div><div class="stat-sub">${workDays}天 ${billCount}張單</div></div>
@@ -2937,6 +3029,7 @@ function renderMonthly(){
 
   // ── Revenue Detail ──
   document.getElementById('mo-revenue-detail').innerHTML=`
+    ${moCarryover!==0?`<div class="flex-between" style="padding:5px 0;background:var(--milk2);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:8px"><span>📦 上月結餘現金</span><span style="font-weight:bold;color:var(--brown3)">$${fmt(moCarryover)}</span></div>`:''}
     <div class="flex-between" style="padding:5px 0"><span>總營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
     <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 現金營業收入</span><span class="text-green">$${fmt(cashRev)}</span></div>
     <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 簽單營業收入</span><span style="color:var(--orange)">$${fmt(signRev)}</span></div>
@@ -3067,6 +3160,9 @@ function renderMonthly(){
       <div class="flex-between" style="padding:3px 0"><span>本月未收簽單</span><span class="${moSignUnpaid>0?'text-red':'text-green'}">$${fmt(moSignUnpaid)}</span></div>`;
   }
 
+  // Save this month's actual cash as carryover result for next month
+  if(!DB.carryover) DB.carryover={};
+  DB.carryover[k+'_result']=moActualCash;
   // Save monthly snapshot to DB for report
   if(!DB.monthly) DB.monthly={};
   DB.monthly[k]={
