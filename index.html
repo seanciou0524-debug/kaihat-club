@@ -1186,9 +1186,17 @@ function exportExcel(){
   if(puRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(puRows), '進貨紀錄');
 
   // Sheet 3: 簽單
-  const sgRows=DB.signing.filter(r=>new Date(r.date).getFullYear()===year)
+  const sgRows=(DB.signBills||[]).filter(r=>r.date&&r.date.startsWith(String(year)))
     .sort((a,b)=>a.date.localeCompare(b.date))
-    .map(r=>({日期:r.date,客戶:r.client,簽單金額:+r.amount||0,已收:+r.collected||0,未收:(+r.amount||0)-(+r.collected||0),備註:r.note||''}));
+    .map(r=>({
+      日期:r.date, 客戶:r.client||'', 單號:r.num||'',
+      簽單金額:+r.signAmt||+r.amount||0, 借支:+r.advanceAmt||0,
+      總應收:+r.amount||0,
+      已收:(r.payments||[]).reduce((s,p)=>s+(+p.amount||0),0),
+      折扣:(r.payments||[]).reduce((s,p)=>s+(+p.discount||0),0),
+      未收:Math.max(0,(+r.amount||0)-(r.payments||[]).reduce((s,p)=>s+(+p.amount||0)+(+p.discount||0),0)),
+      備註:r.note||''
+    }));
   if(sgRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sgRows), '簽單紀錄');
 
   // Sheet 4: 月度結算
@@ -1286,7 +1294,7 @@ function editPurchase(id){
 
 function editSigning(id){
   if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
-  const r=DB.signing.find(x=>x.id===id); if(!r) return;
+  const r=(DB.signBills||[]).find(x=>x.id===id); if(!r) return;
   editType='signing'; editId=id;
   document.getElementById('edit-modal-title').textContent='✏️ 編輯簽單紀錄';
   document.getElementById('edit-modal-body').innerHTML=`
@@ -1320,13 +1328,12 @@ function saveEdit(){
     writeLog('修改',`進貨 ${r.category}類 ${r.vendor} $${r.amount.toLocaleString()}`);
     scheduleSave(); closeEditModal(); renderPurchase();
   } else if(editType==='signing'){
-    const r=DB.signing.find(x=>x.id===editId); if(!r) return;
+    const r=(DB.signBills||[]).find(x=>x.id===editId); if(!r) return;
     r.date=document.getElementById('ed-date').value;
     r.client=document.getElementById('ed-client').value;
     r.amount=+document.getElementById('ed-amount').value||0;
-    r.collected=+document.getElementById('ed-collected').value||0;
     r.note=document.getElementById('ed-note').value;
-    writeLog('修改',`簽單 ${r.client} 已收 $${r.collected.toLocaleString()}`);
+    writeLog('修改',`簽單 ${r.client} $${r.amount.toLocaleString()}`);
     scheduleSave(); closeEditModal(); renderSigning();
   } else if(editType==='bill'){
     const b=DB.daily.find(x=>x.id===editId); if(!b) return;
@@ -2326,7 +2333,7 @@ function renderDailyList(){
     <div class="stat-card"><div class="stat-label">當日營業額</div><div class="stat-value">$${dayTotal.toLocaleString()}</div><div class="stat-sub">${todayBills.length} 張單</div></div>
     <div class="stat-card"><div class="stat-label">現金收入</div><div class="stat-value green">$${dayCashRev.toLocaleString()}</div><div class="stat-sub">現金結帳</div></div>
     <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value" style="color:var(--orange)">$${daySign.toLocaleString()}</div><div class="stat-sub">簽單結帳</div></div>
-    <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div><div class="stat-sub">${dayCashAdvance>0&&signAdvance>0?`現金$${dayCashAdvance.toLocaleString()}+簽單$${signAdvance.toLocaleString()}`:dayCashAdvance>0?'現金結帳借支':dayAdvance>0?'簽單結帳借支':'-'}</div></div>
+    <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div><div class="stat-sub">${dayCashAdvance>0&&signAdvance>0?'現金$'+dayCashAdvance.toLocaleString()+'+簽單$'+signAdvance.toLocaleString():dayCashAdvance>0?'現金結帳借支':dayAdvance>0?'簽單結帳借支':'-'}</div></div>
     <div class="stat-card" style="grid-column:span 2;background:${dayActualCash>=0?'#D4EAD4':'#EAD4D4'};border-color:${dayActualCash>=0?'var(--green)':'var(--red)'}">
       <div class="stat-label">💵 帳上實際現金</div>
       <div class="stat-value ${dayActualCash>=0?'green':'red'}">${dayActualCash>=0?'＋':'－'} $${Math.abs(dayActualCash).toLocaleString()}</div>
@@ -2361,7 +2368,7 @@ function renderDailyList(){
     <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${moTotal.toLocaleString()}</div><div class="stat-sub">${monthBills.length} 張單</div></div>
     <div class="stat-card"><div class="stat-label">月現金收入</div><div class="stat-value green">$${moCash.toLocaleString()}</div><div class="stat-sub">現金結帳</div></div>
     <div class="stat-card"><div class="stat-label">月簽單金額</div><div class="stat-value" style="color:var(--orange)">$${moSign.toLocaleString()}</div><div class="stat-sub">簽單結帳</div></div>
-    <div class="stat-card"><div class="stat-label">月現金借支</div><div class="stat-value ${moAdvance>0?'red':''}">$${moAdvance.toLocaleString()}</div><div class="stat-sub">${moCashAdvance>0&&moSignAdv>0?`現$${moCashAdvance.toLocaleString()}+簽$${moSignAdv.toLocaleString()}（均扣現金）`:moCashAdvance>0?'現金結帳借支':moAdvance>0?'簽單結帳借支（扣現金）':'-'}</div></div>
+    <div class="stat-card"><div class="stat-label">月現金借支</div><div class="stat-value ${moAdvance>0?'red':''}">$${moAdvance.toLocaleString()}</div><div class="stat-sub">${moCashAdvance>0&&moSignAdv>0?'現$'+moCashAdvance.toLocaleString()+'+簽$'+moSignAdv.toLocaleString()+'（均扣現金）':moCashAdvance>0?'現金結帳借支':moAdvance>0?'簽單結帳借支（扣現金）':'-'}</div></div>
     <div class="stat-card" style="grid-column:span 2;background:${moActualCashCard>=0?'#D4EAD4':'#EAD4D4'};border-color:${moActualCashCard>=0?'var(--green)':'var(--red)'}">
       <div class="stat-label">💵 月帳上實際現金</div>
       <div class="stat-value ${moActualCashCard>=0?'green':'red'}">${moActualCashCard>=0?'＋':'－'} $${Math.abs(moActualCashCard).toLocaleString()}</div>
