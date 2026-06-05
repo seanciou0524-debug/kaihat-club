@@ -290,35 +290,139 @@ service cloud.firestore {
       </div>
     </div>
 
-    <!-- ───── 每日營業 ───── -->
+        <!-- ───── 每日營業 ───── -->
     <div id="page-daily" class="hidden">
-      <div class="card">
-        <div class="card-title">新增每日紀錄</div>
-        <div class="form-row">
-          <div class="form-group"><label>日期</label><input type="date" id="d-date"></div>
-          <div class="form-group"><label>單號</label><input type="text" id="d-num" placeholder="例：K2025-001"></div>
+
+      <!-- 日期選擇 + 當日統計 -->
+      <div class="card" id="daily-date-card">
+        <div class="flex-between mb8" style="flex-wrap:wrap;gap:8px">
+          <div class="flex gap8" style="flex-wrap:wrap;align-items:flex-end">
+            <div><label>選擇日期</label><input type="date" id="d-date" onchange="renderDailyList()" style="width:160px"></div>
+            <button class="btn btn-sm btn-outline" onclick="setDailyToday()">今天</button>
+          </div>
+          <div class="flex gap8" style="flex-wrap:wrap">
+            <select id="dl-year" onchange="renderDailyList()" style="width:90px"></select>
+            <select id="dl-month" onchange="renderDailyList()" style="width:75px"></select>
+          </div>
         </div>
-        <div class="form-row-3">
-          <div class="form-group"><label>總營業額</label><input type="number" id="d-total" placeholder="0"></div>
-          <div class="form-group"><label>簽單金額</label><input type="number" id="d-sign" placeholder="0"></div>
-          <div class="form-group"><label>現金金額（自動）</label><input type="number" id="d-cash" readonly style="background:var(--milk2)"></div>
-        </div>
-        <div class="form-group"><label>備註</label><input type="text" id="d-note" placeholder="選填"></div>
-        <button class="btn btn-gold" onclick="addDaily()">＋ 新增紀錄</button>
+        <!-- 當日統計 -->
+        <div id="daily-day-stats" class="stats-grid" style="margin-bottom:0"></div>
       </div>
+
+      <!-- 月統計 -->
       <div class="card">
-        <div class="card-title">紀錄查詢</div>
-        <div class="month-selector">
-          <select id="dl-year" onchange="renderDailyList()"></select>
-          <select id="dl-month" onchange="renderDailyList()"></select>
+        <div class="card-title">📅 月度統計</div>
+        <div id="daily-month-stats" class="stats-grid" style="margin-bottom:0"></div>
+      </div>
+
+      <!-- 新增單據按鈕 -->
+      <div id="daily-add-btn-row" class="mb8">
+        <button class="btn btn-gold" onclick="openBillForm()" id="btn-open-bill">＋ 新增單據</button>
+      </div>
+
+      <!-- 新增單據表單 -->
+      <div id="bill-form-card" class="card hidden">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">📋 新增單據</div>
+          <button onclick="closeBillForm()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3)">✕</button>
         </div>
+
+        <!-- 基本資料 -->
+        <div class="form-row">
+          <div class="form-group"><label>單號</label><input type="text" id="b-num" placeholder="例：K001"></div>
+          <div class="form-group"><label>包廂號</label><input type="text" id="b-room" placeholder="例：A01"></div>
+        </div>
+
+        <!-- 包廂費 -->
+        <div class="form-group">
+          <label>包廂費</label>
+          <input type="number" id="b-room-fee" placeholder="0" oninput="calcBillTotal()">
+        </div>
+
+        <!-- 檯費明細 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">檯費明細</label>
+            <button class="btn btn-sm btn-outline" onclick="addTableFeeRow()">＋ 新增</button>
+          </div>
+          <div id="table-fee-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>檯費小計</span><span id="table-fee-subtotal" class="text-gold bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 酒水明細 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">酒水明細</label>
+            <button class="btn btn-sm btn-outline" onclick="addDrinkRow()">＋ 新增</button>
+          </div>
+          <div id="drink-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>酒水小計</span><span id="drink-subtotal" class="text-gold bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 小菜明細 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">小菜明細</label>
+            <button class="btn btn-sm btn-outline" onclick="addFoodRow()">＋ 新增</button>
+          </div>
+          <div id="food-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>小菜小計</span><span id="food-subtotal" class="text-gold bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 現金借支 -->
+        <div class="form-group">
+          <label>現金借支（另外計入，不影響營業額）</label>
+          <input type="number" id="b-advance" placeholder="0" oninput="calcBillTotal()">
+        </div>
+
+        <!-- 小計 + 結帳方式 -->
+        <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+          <div class="flex-between mb8"><span style="font-size:13px">營業額小計</span><span id="b-subtotal" style="font-size:18px;font-weight:bold;color:var(--brown3)">$0</span></div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>結帳方式</label>
+            <select id="b-pay-type">
+              <option value="cash">現金</option>
+              <option value="sign">簽單</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group"><label>備註</label><input type="text" id="b-note" placeholder="選填"></div>
+        <button class="btn btn-gold" onclick="saveBill()">💾 儲存單據</button>
+      </div>
+
+      <!-- 當日單據列表 -->
+      <div class="card">
+        <div class="card-title" id="dl-list-title">單據列表</div>
+        <div id="dl-bills-list"></div>
+        <div id="dl-empty" class="small text-center" style="padding:16px;display:none">今日尚無單據</div>
+      </div>
+
+      <!-- 月度紀錄查詢 -->
+      <div class="card">
+        <div class="card-title">月度單據紀錄</div>
         <div style="overflow-x:auto"><table>
-          <thead><tr><th>日期</th><th>單號</th><th>總營業額</th><th>簽單</th><th>現金</th><th>備註</th><th></th></tr></thead>
+          <thead><tr><th>日期</th><th>單號</th><th>包廂</th><th>營業額</th><th>結帳</th><th>借支</th><th></th></tr></thead>
           <tbody id="dl-tbody"></tbody>
-          <tfoot><tr class="tfoot"><td colspan="2">合計</td><td id="dl-t-total">0</td><td id="dl-t-sign">0</td><td id="dl-t-cash">0</td><td colspan="2"></td></tr></tfoot>
+          <tfoot>
+            <tr class="tfoot">
+              <td colspan="3">合計</td>
+              <td id="dl-t-total">$0</td>
+              <td id="dl-t-sign-cash"></td>
+              <td id="dl-t-advance">$0</td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table></div>
       </div>
     </div>
+
 
     <!-- ───── 進貨紀錄 ───── -->
     <div id="page-purchase" class="hidden">
@@ -518,6 +622,22 @@ service cloud.firestore {
         <div id="log-empty" class="small text-center" style="padding:16px;display:none">尚無操作紀錄</div>
       </div>
     </div>
+
+
+<!-- ═══════════════ EDIT MODAL ═══════════════ -->
+<div id="edit-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.7);z-index:9000;padding:20px;overflow-y:auto;align-items:center;justify-content:center">
+  <div style="background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;border:1px solid var(--milk3)">
+    <div class="flex-between mb8">
+      <div id="edit-modal-title" style="font-size:14px;font-weight:bold;color:var(--brown3)">編輯紀錄</div>
+      <button onclick="closeEditModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3)">✕</button>
+    </div>
+    <div id="edit-modal-body"></div>
+    <div class="btn-row mt8">
+      <button class="btn btn-gold" onclick="saveEdit()">💾 儲存</button>
+      <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+    </div>
+  </div>
+</div>
 
 </div><!-- /content -->
 </div><!-- /main-app -->
@@ -908,9 +1028,126 @@ function importBackup(event){
 }
 
 /* ════════════════════════════════════════
+   ✏️ 編輯功能（管理員 + 會計）
+════════════════════════════════════════ */
+let editType=null, editId=null;
+
+function openEditModal(){ 
+  const m=document.getElementById('edit-modal');
+  m.style.display='flex';
+}
+function closeEditModal(){
+  document.getElementById('edit-modal').style.display='none';
+  editType=null; editId=null;
+}
+
+function editDaily(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const r=DB.daily.find(x=>x.id===id); if(!r) return;
+  editType='daily'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯每日營業紀錄';
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="ed-date" value="${r.date}"></div>
+    <div class="form-group"><label>單號</label><input type="text" id="ed-num" value="${r.num||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>總營業額</label><input type="number" id="ed-total" value="${r.total||0}" oninput="document.getElementById('ed-cash').value=(+this.value||0)-(+document.getElementById('ed-sign').value||0)"></div>
+    <div class="form-group"><label>簽單金額</label><input type="number" id="ed-sign" value="${r.sign||0}" oninput="document.getElementById('ed-cash').value=(+document.getElementById('ed-total').value||0)-(+this.value||0)"></div></div>
+    <div class="form-group"><label>現金金額（自動）</label><input type="number" id="ed-cash" value="${r.cash||0}" readonly style="background:var(--milk2)"></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${r.note||''}"></div>`;
+  openEditModal();
+}
+
+function editPurchase(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const r=DB.purchases.find(x=>x.id===id); if(!r) return;
+  editType='purchase'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯進貨紀錄';
+  const vendors=(DB.vendors[r.category]||[]);
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="ed-date" value="${r.date}"></div>
+    <div class="form-group"><label>廠商</label><input type="text" id="ed-vendor" value="${r.vendor||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>品項</label><input type="text" id="ed-item" value="${r.item||''}"></div>
+    <div class="form-group"><label>金額</label><input type="number" id="ed-amount" value="${r.amount||0}"></div></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${r.note||''}"></div>`;
+  openEditModal();
+}
+
+function editSigning(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const r=DB.signing.find(x=>x.id===id); if(!r) return;
+  editType='signing'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯簽單紀錄';
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="ed-date" value="${r.date}"></div>
+    <div class="form-group"><label>客戶名稱</label><input type="text" id="ed-client" value="${r.client||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>簽單金額</label><input type="number" id="ed-amount" value="${r.amount||0}"></div>
+    <div class="form-group"><label>已收金額</label><input type="number" id="ed-collected" value="${r.collected||0}"></div></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${r.note||''}"></div>`;
+  openEditModal();
+}
+
+function saveEdit(){
+  if(!editType||!editId) return;
+  if(editType==='daily'){
+    const r=DB.daily.find(x=>x.id===editId); if(!r) return;
+    const total=+document.getElementById('ed-total').value||0;
+    const sign=+document.getElementById('ed-sign').value||0;
+    r.date=document.getElementById('ed-date').value;
+    r.num=document.getElementById('ed-num').value;
+    r.total=total; r.sign=sign; r.cash=total-sign;
+    r.note=document.getElementById('ed-note').value;
+    writeLog('修改',`每日營業 ${r.date} 總額 $${total.toLocaleString()}`);
+    scheduleSave(); closeEditModal(); renderDailyList();
+  } else if(editType==='purchase'){
+    const r=DB.purchases.find(x=>x.id===editId); if(!r) return;
+    r.date=document.getElementById('ed-date').value;
+    r.vendor=document.getElementById('ed-vendor').value;
+    r.item=document.getElementById('ed-item').value;
+    r.amount=+document.getElementById('ed-amount').value||0;
+    r.note=document.getElementById('ed-note').value;
+    writeLog('修改',`進貨 ${r.category}類 ${r.vendor} $${r.amount.toLocaleString()}`);
+    scheduleSave(); closeEditModal(); renderPurchase();
+  } else if(editType==='signing'){
+    const r=DB.signing.find(x=>x.id===editId); if(!r) return;
+    r.date=document.getElementById('ed-date').value;
+    r.client=document.getElementById('ed-client').value;
+    r.amount=+document.getElementById('ed-amount').value||0;
+    r.collected=+document.getElementById('ed-collected').value||0;
+    r.note=document.getElementById('ed-note').value;
+    writeLog('修改',`簽單 ${r.client} 已收 $${r.collected.toLocaleString()}`);
+    scheduleSave(); closeEditModal(); renderSigning();
+  } else if(editType==='bill'){
+    const b=DB.daily.find(x=>x.id===editId); if(!b) return;
+    b.num=document.getElementById('ed-num').value;
+    b.room=document.getElementById('ed-room').value;
+    b.roomFee=+document.getElementById('ed-room-fee').value||0;
+    b.payType=document.getElementById('ed-pay-type').value;
+    b.advance=+document.getElementById('ed-advance').value||0;
+    b.note=document.getElementById('ed-note').value;
+    // recalc total
+    const tfTotal=b.tableFees?b.tableFees.reduce((s,r)=>s+r.fee,0):0;
+    const dTotal=b.drinks?b.drinks.reduce((s,r)=>s+r.amount,0):0;
+    const fTotal=b.foods?b.foods.reduce((s,r)=>s+r.amount,0):0;
+    b.total=b.roomFee+tfTotal+dTotal+fTotal;
+    writeLog('修改',`單據 ${b.num||'無號'} ${b.room||''} 結帳改為${b.payType==='sign'?'簽單':'現金'}`);
+    scheduleSave(); closeEditModal(); renderDailyList();
+  }
+}
+
+/* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
 window.addDaily = addDaily;
+window.setDailyToday = setDailyToday;
+window.openBillForm = openBillForm;
+window.closeBillForm = closeBillForm;
+window.addTableFeeRow = addTableFeeRow;
+window.addDrinkRow = addDrinkRow;
+window.addFoodRow = addFoodRow;
+window.calcBillTotal = calcBillTotal;
+window.saveBill = saveBill;
+window.toggleBillDetail = toggleBillDetail;
+window.deleteBill = deleteBill;
+window.editBill = editBill;
 window.addMonthExpense = addMonthExpense;
 window.addPA = addPA;
 window.addPB = addPB;
@@ -947,6 +1184,11 @@ window.saveTarget = saveTarget;
 window.exportExcel = exportExcel;
 window.exportBackup = exportBackup;
 window.importBackup = importBackup;
+window.editDaily = editDaily;
+window.editPurchase = editPurchase;
+window.editSigning = editSigning;
+window.saveEdit = saveEdit;
+window.closeEditModal = closeEditModal;
 
 /* Firebase Auth 狀態監聽（自動登入） */
 onAuthStateChanged(auth, async user => {
@@ -1147,7 +1389,13 @@ function renderOverview(){
     return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;
   });
   let rev=0,sign=0,cash=0;
-  filtered.forEach(r=>{rev+=+r.total||0; sign+=+r.sign||0; cash+=+r.cash||0;});
+  filtered.forEach(r=>{
+    rev+=+r.total||0;
+    // new bill format uses payType; old format uses sign/cash fields
+    if(r.payType==='sign'){ sign+=+r.total||0; }
+    else if(r.payType==='cash'){ cash+=+r.total||0; }
+    else { sign+=+r.sign||0; cash+=+r.cash||0; }
+  });
   document.getElementById('ov-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">總營業額</div><div class="stat-value">$${fmt(rev)}</div></div>
     <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${fmt(sign)}</div></div>
@@ -1198,43 +1446,386 @@ function selOvMonth(y,m){ document.getElementById('ov-month').value=m; renderOve
 /* ════════════════════════════════════════
    💰 每日營業
 ════════════════════════════════════════ */
-function addDaily(){
-  if(!getPerms().dailyAdd){ alert('您的權限無法新增紀錄'); return; }
-  const date=document.getElementById('d-date').value;
-  const num=document.getElementById('d-num').value;
-  const total=+document.getElementById('d-total').value||0;
-  const sign=+document.getElementById('d-sign').value||0;
-  const note=document.getElementById('d-note').value;
-  if(!date||total<=0){ alert('請填寫日期和總營業額'); return; }
-  DB.daily.push({id:Date.now(),date,num,total,sign,cash:total-sign,note});
-  writeLog('新增', `每日營業 ${date} 總額 $${total.toLocaleString()}`);
-  scheduleSave();
-  ['d-num','d-total','d-sign','d-cash','d-note'].forEach(id=>document.getElementById(id).value='');
+/* ════════════════════════════════════════
+   💰 每日營業（重新設計版）
+   每張單包含：包廂費、檯費、酒水、小菜、借支
+════════════════════════════════════════ */
+
+// 取得酒水廠商清單（共用進貨廠商）
+function getDrinkVendors(){
+  return DB.vendors && DB.vendors.A ? DB.vendors.A : [];
+}
+
+function setDailyToday(){
+  document.getElementById('d-date').value = NOW.toISOString().slice(0,10);
   renderDailyList();
 }
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('d-sign').addEventListener('input',function(){
-    const t=+document.getElementById('d-total').value||0;
-    document.getElementById('d-cash').value=t-(+this.value||0);
+
+function openBillForm(){
+  document.getElementById('bill-form-card').classList.remove('hidden');
+  document.getElementById('btn-open-bill').style.display='none';
+  // init empty rows
+  document.getElementById('table-fee-rows').innerHTML='';
+  document.getElementById('drink-rows').innerHTML='';
+  document.getElementById('food-rows').innerHTML='';
+  document.getElementById('b-num').value='';
+  document.getElementById('b-room').value='';
+  document.getElementById('b-room-fee').value='';
+  document.getElementById('b-advance').value='';
+  document.getElementById('b-note').value='';
+  document.getElementById('b-pay-type').value='cash';
+  calcBillTotal();
+  addTableFeeRow();
+}
+
+function closeBillForm(){
+  document.getElementById('bill-form-card').classList.add('hidden');
+  document.getElementById('btn-open-bill').style.display='';
+}
+
+function addTableFeeRow(){
+  const container=document.getElementById('table-fee-rows');
+  const idx=container.children.length;
+  const div=document.createElement('div');
+  div.className='table-fee-row';
+  div.style.cssText='display:grid;grid-template-columns:1fr 90px 90px 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <input type="text" placeholder="小名" oninput="calcBillTotal()">
+    <input type="time" value="20:00" oninput="calcBillTotal()">
+    <input type="time" value="23:00" oninput="calcBillTotal()">
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function addDrinkRow(){
+  const container=document.getElementById('drink-rows');
+  const vendors=getDrinkVendors();
+  const vendorOpts=vendors.map(v=>`<option value="${v}">${v}</option>`).join('');
+  const div=document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:120px 1fr 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <select oninput="calcBillTotal()"><option value="">選廠商</option>${vendorOpts}</select>
+    <input type="text" placeholder="品項名稱" oninput="calcBillTotal()">
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function addFoodRow(){
+  const container=document.getElementById('food-rows');
+  const div=document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <input type="text" placeholder="品項名稱" oninput="calcBillTotal()">
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function calcBillTotal(){
+  // 包廂費
+  const roomFee=+document.getElementById('b-room-fee').value||0;
+
+  // 檯費
+  let tableFee=0;
+  document.querySelectorAll('#table-fee-rows .table-fee-row').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) tableFee+=+inputs[0].value||0;
   });
-  document.getElementById('d-total').addEventListener('input',function(){
-    const s=+document.getElementById('d-sign').value||0;
-    document.getElementById('d-cash').value=(+this.value||0)-s;
+  document.getElementById('table-fee-subtotal').textContent='$'+tableFee.toLocaleString();
+
+  // 酒水
+  let drinkTotal=0;
+  document.querySelectorAll('#drink-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) drinkTotal+=+inputs[0].value||0;
   });
-});
+  document.getElementById('drink-subtotal').textContent='$'+drinkTotal.toLocaleString();
+
+  // 小菜
+  let foodTotal=0;
+  document.querySelectorAll('#food-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) foodTotal+=+inputs[0].value||0;
+  });
+  document.getElementById('food-subtotal').textContent='$'+foodTotal.toLocaleString();
+
+  const subtotal=roomFee+tableFee+drinkTotal+foodTotal;
+  document.getElementById('b-subtotal').textContent='$'+subtotal.toLocaleString();
+}
+
+function collectTableFees(){
+  const rows=[];
+  document.querySelectorAll('#table-fee-rows .table-fee-row').forEach(row=>{
+    const allInputs=row.querySelectorAll('input');
+    const name=allInputs[0]?allInputs[0].value.trim():'';
+    const startTime=allInputs[1]?allInputs[1].value:'';
+    const endTime=allInputs[2]?allInputs[2].value:'';
+    const fee=+(allInputs[3]?allInputs[3].value:0)||0;
+    if(name||fee>0) rows.push({name,startTime,endTime,fee});
+  });
+  return rows;
+}
+
+function collectDrinks(){
+  const rows=[];
+  document.querySelectorAll('#drink-rows > div').forEach(row=>{
+    const vendor=row.querySelector('select')?row.querySelector('select').value:'';
+    const inputs=row.querySelectorAll('input');
+    const item=inputs[0]?inputs[0].value.trim():'';
+    const amount=+(inputs[1]?inputs[1].value:0)||0;
+    if(item||amount>0) rows.push({vendor,item,amount});
+  });
+  return rows;
+}
+
+function collectFoods(){
+  const rows=[];
+  document.querySelectorAll('#food-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const item=inputs[0]?inputs[0].value.trim():'';
+    const amount=+(inputs[1]?inputs[1].value:0)||0;
+    if(item||amount>0) rows.push({item,amount});
+  });
+  return rows;
+}
+
+function saveBill(){
+  if(!getPerms().dailyAdd){ alert('您的權限無法新增單據'); return; }
+  const date=document.getElementById('d-date').value;
+  if(!date){ alert('請先選擇日期'); return; }
+  const num=document.getElementById('b-num').value.trim();
+  const room=document.getElementById('b-room').value.trim();
+  const roomFee=+document.getElementById('b-room-fee').value||0;
+  const payType=document.getElementById('b-pay-type').value;
+  const advance=+document.getElementById('b-advance').value||0;
+  const note=document.getElementById('b-note').value;
+
+  const tableFees=collectTableFees();
+  const drinks=collectDrinks();
+  const foods=collectFoods();
+
+  const tableFeeTotal=tableFees.reduce((s,r)=>s+r.fee,0);
+  const drinkTotal=drinks.reduce((s,r)=>s+r.amount,0);
+  const foodTotal=foods.reduce((s,r)=>s+r.amount,0);
+  const total=roomFee+tableFeeTotal+drinkTotal+foodTotal;
+
+  if(total<=0){ alert('請輸入至少一項金額'); return; }
+
+  const bill={
+    id: Date.now(),
+    date, num, room,
+    roomFee, tableFees, drinks, foods,
+    tableFeeTotal, drinkTotal, foodTotal,
+    total,
+    payType,  // 'cash' or 'sign'
+    advance,
+    note
+  };
+
+  if(!DB.daily) DB.daily=[];
+  DB.daily.push(bill);
+  writeLog('新增', `單據 ${num||'無號'} ${room||''} $${total.toLocaleString()} ${payType==='sign'?'簽單':'現金'}`);
+  scheduleSave();
+  closeBillForm();
+  renderDailyList();
+}
+
 function renderDailyList(){
+  const dateVal=document.getElementById('d-date').value;
   const year=+document.getElementById('dl-year').value;
   const month=+document.getElementById('dl-month').value;
-  const rows=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===month;}).sort((a,b)=>a.date.localeCompare(b.date));
-  let tt=0,ts=0,tc=0;
-  document.getElementById('dl-tbody').innerHTML=rows.map(r=>{
-    tt+=+r.total||0; ts+=+r.sign||0; tc+=+r.cash||0;
-    return `<tr><td>${r.date}</td><td>${r.num||'-'}</td><td>$${fmt(r.total)}</td><td>$${fmt(r.sign)}</td><td>$${fmt(r.cash)}</td><td>${r.note||''}</td><td><button class="btn btn-sm btn-danger" onclick="deleteDaily(${r.id})">刪除</button></td></tr>`;
-  }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">本月尚無紀錄</td></tr>';
-  document.getElementById('dl-t-total').textContent='$'+fmt(tt);
-  document.getElementById('dl-t-sign').textContent='$'+fmt(ts);
-  document.getElementById('dl-t-cash').textContent='$'+fmt(tc);
+
+  // ── 當日單據 ──
+  const todayBills=dateVal ? DB.daily.filter(r=>r.date===dateVal) : [];
+  const listTitle=document.getElementById('dl-list-title');
+  if(listTitle) listTitle.textContent = dateVal ? `${dateVal} 單據列表（共 ${todayBills.length} 張）` : '單據列表';
+
+  // 當日統計
+  const dayTotal=todayBills.reduce((s,r)=>s+(+r.total||0),0);
+  const dayCash=todayBills.filter(r=>r.payType==='cash').reduce((s,r)=>s+(+r.total||0),0);
+  const daySign=todayBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.total||0),0);
+  const dayAdvance=todayBills.reduce((s,r)=>s+(+r.advance||0),0);
+
+  const dayStats=document.getElementById('daily-day-stats');
+  if(dayStats) dayStats.innerHTML=`
+    <div class="stat-card"><div class="stat-label">當日營業額</div><div class="stat-value">$${dayTotal.toLocaleString()}</div><div class="stat-sub">${todayBills.length} 張單</div></div>
+    <div class="stat-card"><div class="stat-label">帳上現金</div><div class="stat-value green">$${dayCash.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${daySign.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div></div>`;
+
+  // 月統計
+  const monthBills=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===month;});
+  const moTotal=monthBills.reduce((s,r)=>s+(+r.total||0),0);
+  const moCash=monthBills.filter(r=>r.payType==='cash').reduce((s,r)=>s+(+r.total||0),0);
+  const moSign=monthBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.total||0),0);
+  const moAdvance=monthBills.reduce((s,r)=>s+(+r.advance||0),0);
+
+  const moStats=document.getElementById('daily-month-stats');
+  if(moStats) moStats.innerHTML=`
+    <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${moTotal.toLocaleString()}</div><div class="stat-sub">${monthBills.length} 張單</div></div>
+    <div class="stat-card"><div class="stat-label">月帳上現金</div><div class="stat-value green">$${moCash.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">月簽單金額</div><div class="stat-value">$${moSign.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">月現金借支</div><div class="stat-value ${moAdvance>0?'red':''}">$${moAdvance.toLocaleString()}</div></div>`;
+
+  // 當日單據展開列表
+  const listEl=document.getElementById('dl-bills-list');
+  const emptyEl=document.getElementById('dl-empty');
+  if(!todayBills.length){
+    if(listEl) listEl.innerHTML='';
+    if(emptyEl) emptyEl.style.display='';
+  } else {
+    if(emptyEl) emptyEl.style.display='none';
+    if(listEl) listEl.innerHTML=todayBills.map(b=>{
+      const canEdit=['admin','accounting'].includes(currentRole);
+      const payBadge=b.payType==='sign'?'<span class="badge badge-orange">簽單</span>':'<span class="badge badge-green">現金</span>';
+      return `<div class="list-item" style="flex-direction:column;align-items:stretch">
+        <div class="flex-between" style="cursor:pointer" onclick="toggleBillDetail(${b.id})">
+          <div>
+            <span style="font-weight:bold;font-size:13px">${b.num||'無單號'}</span>
+            <span style="margin:0 8px;color:var(--text3)">包廂 ${b.room||'-'}</span>
+            ${payBadge}
+          </div>
+          <div class="flex gap8" style="align-items:center">
+            <span style="font-weight:bold;color:var(--brown3)">$${(+b.total||0).toLocaleString()}</span>
+            ${canEdit?`<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();editBill(${b.id})">✏️</button>`:''}
+            ${canEdit?`<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteBill(${b.id})">刪</button>`:''}
+            <span style="color:var(--text3);font-size:16px" id="arrow-${b.id}">▼</span>
+          </div>
+        </div>
+        <div id="bill-detail-${b.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--milk3)">
+          ${renderBillDetail(b)}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // 月度表格
+  let tt=0,ts=0,tc=0,ta=0;
+  const tbody=document.getElementById('dl-tbody');
+  if(tbody) tbody.innerHTML=monthBills.sort((a,b)=>a.date.localeCompare(b.date)).map(b=>{
+    tt+=+b.total||0;
+    if(b.payType==='sign') ts+=+b.total||0;
+    else tc+=+b.total||0;
+    ta+=+b.advance||0;
+    const payBadge=b.payType==='sign'?'<span class="badge badge-orange">簽單</span>':'<span class="badge badge-green">現金</span>';
+    const canEdit=['admin','accounting'].includes(currentRole);
+    return `<tr>
+      <td>${b.date}</td><td>${b.num||'-'}</td><td>${b.room||'-'}</td>
+      <td>$${(+b.total||0).toLocaleString()}</td>
+      <td>${payBadge}</td>
+      <td>${b.advance>0?'$'+(+b.advance).toLocaleString():'-'}</td>
+      <td style="white-space:nowrap">
+        ${canEdit?`<button class="btn btn-sm btn-outline" onclick="editBill(${b.id})" style="margin-right:4px">✏️</button>`:''}
+        ${canEdit?`<button class="btn btn-sm btn-danger" onclick="deleteBill(${b.id})">刪</button>`:''}
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">本月尚無單據</td></tr>';
+
+  const tTotal=document.getElementById('dl-t-total');
+  const tSignCash=document.getElementById('dl-t-sign-cash');
+  const tAdv=document.getElementById('dl-t-advance');
+  if(tTotal) tTotal.textContent='$'+tt.toLocaleString();
+  if(tSignCash) tSignCash.innerHTML=`<span class="badge badge-orange">簽 $${ts.toLocaleString()}</span> <span class="badge badge-green">現 $${tc.toLocaleString()}</span>`;
+  if(tAdv) tAdv.textContent='$'+ta.toLocaleString();
 }
+
+function renderBillDetail(b){
+  let html='<div style="font-size:12px">';
+
+  // 包廂費
+  if(b.roomFee>0) html+=`<div class="flex-between" style="padding:3px 0"><span style="color:var(--text2)">包廂費</span><span>$${(+b.roomFee).toLocaleString()}</span></div>`;
+
+  // 檯費
+  if(b.tableFees&&b.tableFees.length){
+    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">檯費明細</div>`;
+    b.tableFees.forEach(f=>{
+      html+=`<div class="flex-between" style="padding:2px 8px"><span>${f.name||'-'} ${f.startTime?f.startTime+' ~ '+f.endTime:''}</span><span>$${(+f.fee||0).toLocaleString()}</span></div>`;
+    });
+    html+=`<div class="flex-between" style="padding:3px 0;font-weight:bold"><span>檯費合計</span><span>$${(+b.tableFeeTotal||0).toLocaleString()}</span></div>`;
+  }
+
+  // 酒水
+  if(b.drinks&&b.drinks.length){
+    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">酒水明細</div>`;
+    b.drinks.forEach(d=>{
+      html+=`<div class="flex-between" style="padding:2px 8px"><span>${d.vendor?'['+d.vendor+'] ':''}${d.item||'-'}</span><span>$${(+d.amount||0).toLocaleString()}</span></div>`;
+    });
+    html+=`<div class="flex-between" style="padding:3px 0;font-weight:bold"><span>酒水合計</span><span>$${(+b.drinkTotal||0).toLocaleString()}</span></div>`;
+  }
+
+  // 小菜
+  if(b.foods&&b.foods.length){
+    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">小菜明細</div>`;
+    b.foods.forEach(f=>{
+      html+=`<div class="flex-between" style="padding:2px 8px"><span>${f.item||'-'}</span><span>$${(+f.amount||0).toLocaleString()}</span></div>`;
+    });
+    html+=`<div class="flex-between" style="padding:3px 0;font-weight:bold"><span>小菜合計</span><span>$${(+b.foodTotal||0).toLocaleString()}</span></div>`;
+  }
+
+  // 借支
+  if(b.advance>0) html+=`<div class="flex-between" style="padding:3px 0;color:var(--red);border-top:1px solid var(--milk3);margin-top:4px"><span>現金借支</span><span>$${(+b.advance).toLocaleString()}</span></div>`;
+
+  // 總計
+  html+=`<div class="flex-between" style="padding:6px 0;font-weight:bold;font-size:13px;border-top:2px solid var(--milk3);margin-top:4px"><span>營業額合計</span><span style="color:var(--brown3)">$${(+b.total||0).toLocaleString()}</span></div>`;
+  if(b.note) html+=`<div style="color:var(--text3);font-size:11px;padding:3px 0">備註：${b.note}</div>`;
+  html+='</div>';
+  return html;
+}
+
+function toggleBillDetail(id){
+  const el=document.getElementById(`bill-detail-${id}`);
+  const arrow=document.getElementById(`arrow-${id}`);
+  if(el){
+    const isHidden=el.style.display==='none';
+    el.style.display=isHidden?'':'none';
+    if(arrow) arrow.textContent=isHidden?'▲':'▼';
+  }
+}
+
+function deleteBill(id){
+  if(!canWrite()){ alert('您的權限無法刪除'); return; }
+  if(!confirm('確認刪除此張單據？')) return;
+  const b=DB.daily.find(x=>x.id===id);
+  writeLog('刪除', `單據 ${b?b.num||'無號':''} $${b?(+b.total||0).toLocaleString():''}`);
+  DB.daily=DB.daily.filter(x=>x.id!==id);
+  scheduleSave();
+  renderDailyList();
+}
+
+function editBill(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const b=DB.daily.find(x=>x.id===id);
+  if(!b) return;
+
+  editType='bill'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯單據';
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row">
+      <div class="form-group"><label>單號</label><input type="text" id="ed-num" value="${b.num||''}"></div>
+      <div class="form-group"><label>包廂號</label><input type="text" id="ed-room" value="${b.room||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>包廂費</label><input type="number" id="ed-room-fee" value="${b.roomFee||0}"></div>
+      <div class="form-group"><label>結帳方式</label>
+        <select id="ed-pay-type">
+          <option value="cash" ${b.payType==='cash'?'selected':''}>現金</option>
+          <option value="sign" ${b.payType==='sign'?'selected':''}>簽單</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>現金借支</label><input type="number" id="ed-advance" value="${b.advance||0}"></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${b.note||''}"></div>
+    <div class="alert alert-orange" style="font-size:11px">⚠️ 此編輯僅修改基本資料與結帳方式。如需修改明細，請刪除後重新輸入。</div>`;
+  openEditModal();
+}
+
+
+
 function deleteDaily(id){ if(!canWrite()){alert('您的權限無法刪除');return;} if(!confirm('確認刪除此筆紀錄？'))return;
   const r=DB.daily.find(x=>x.id===id);
   writeLog('刪除', `每日營業 ${r?r.date:''} 總額 $${r?Number(r.total).toLocaleString():''}`);
@@ -1290,7 +1881,10 @@ function renderPurchase(){
   const rows=DB.purchases.filter(r=>{const d=new Date(r.date);return r.category===puTab&&d.getFullYear()===year&&d.getMonth()+1===month;}).sort((a,b)=>a.date.localeCompare(b.date));
   let ta=0;
   document.getElementById('pu-tbody').innerHTML=rows.map(r=>{ta+=+r.amount||0;
-    return `<tr><td>${r.date}</td><td>${r.vendor}</td><td>${r.item||'-'}</td><td>$${fmt(r.amount)}</td><td>${r.note||''}</td><td><button class="btn btn-sm btn-danger" onclick="deletePurchase(${r.id})">刪除</button></td></tr>`;
+    const canEditP=['admin','accounting'].includes(currentRole);
+    const editBtnP=canEditP?'<button class="btn btn-sm btn-outline" onclick="editPurchase('+r.id+')">✏️</button> ':'';
+    const delBtnP=canEditP?'<button class="btn btn-sm btn-danger" onclick="deletePurchase('+r.id+')">刪</button>':'<span class="small">-</span>';
+    return '<tr><td>'+r.date+'</td><td>'+r.vendor+'</td><td>'+(r.item||'-')+'</td><td>$'+fmt(r.amount)+'</td><td>'+(r.note||'')+'</td><td style="white-space:nowrap">'+editBtnP+delBtnP+'</td></tr>';
   }).join('')||'<tr><td colspan="6" class="text-center small" style="padding:16px">本月尚無進貨紀錄</td></tr>';
   document.getElementById('pu-t-amount').textContent='$'+fmt(ta);
 }
@@ -1435,6 +2029,8 @@ function renderMonthly(){
   const k=moKey(); const{y,m}=parseYM(k);
   const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
   const revenue=days.reduce((s,r)=>s+(+r.total||0),0);
+  const monthSign=days.filter(r=>r.payType==='sign'||(+r.sign||0)>0).reduce((s,r)=>s+(r.payType?((r.payType==='sign'?+r.total:0)):(+r.sign||0)),0);
+  const monthCash=days.filter(r=>r.payType==='cash'||(+r.cash||0)>0).reduce((s,r)=>s+(r.payType?((r.payType==='cash'?+r.total:0)):(+r.cash||0)),0);
   const workDays=days.length;
   const avgDaily=workDays>0?Math.round(revenue/workDays):0;
   const pr=calcPayrollTotal(k);
@@ -1529,7 +2125,8 @@ function renderSigning(){
   document.getElementById('sg-tbody').innerHTML=rows.map(r=>{
     ta+=+r.amount||0; tc+=+r.collected||0;
     const unc=(+r.amount||0)-(+r.collected||0);
-    return `<tr><td>${r.date}</td><td>${r.client}</td><td>$${fmt(r.amount)}</td><td class="text-green">$${fmt(r.collected)}</td><td class="${unc>0?'text-red':''}">$${fmt(unc)}</td><td>${r.note||''}</td><td><button class="btn btn-sm btn-danger" onclick="deleteSigning(${r.id})">刪除</button></td></tr>`;
+    const canEditSg=['admin','accounting'].includes(currentRole);
+    return `<tr><td>${r.date}</td><td>${r.client}</td><td>$${fmt(r.amount)}</td><td class="text-green">$${fmt(r.collected)}</td><td class="${unc>0?'text-red':''}">$${fmt(unc)}</td><td>${r.note||''}</td><td class="btn-row">${canEditSg?`<button class="btn btn-sm btn-outline" onclick="editSigning(${r.id})">✏️</button>`:''}${canEditSg?`<button class="btn btn-sm btn-danger" onclick="deleteSigning(${r.id})">刪</button>`:'<span class="small">-</span>'}</td></tr>`;
   }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">尚無簽單紀錄</td></tr>';
   const unc=ta-tc;
   document.getElementById('sg-stats').innerHTML=`
