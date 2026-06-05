@@ -2158,12 +2158,12 @@ function saveBill(){
   const num=document.getElementById('b-num').value.trim();
   const room=document.getElementById('b-room').value.trim();
   const client=document.getElementById('b-client').value.trim();
+  const payType=document.getElementById('b-pay-type').value;
+  const roomFee=+document.getElementById('b-room-fee').value||0;
   // Warn if sign/mixed without client name
   if((payType==='sign'||payType==='mixed')&&!client){
     if(!confirm('⚠️ 簽單結帳建議填寫客戶姓名，以便追蹤應收帳款。\n確定不填寫客戶姓名嗎？')) return;
   }
-  const roomFee=+document.getElementById('b-room-fee').value||0;
-  const payType=document.getElementById('b-pay-type').value;
   const advance=+document.getElementById('b-advance').value||0;
   const discount=+document.getElementById('b-discount').value||0;
   const discountNote=document.getElementById('b-discount-note').value;
