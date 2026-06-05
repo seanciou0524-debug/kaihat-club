@@ -1571,7 +1571,7 @@ function renderDailyPnl(){
 
   // ── 帳上現金計算 ──
   // 現金收入 + 今日簽單還款 - 所有現金支出 - 現金借支
-  const actualCash=cashRev + signCollectToday - totalCashOut - cashAdvance;
+  const actualCash=cashRev + signCollectToday - totalCashOut - cashAdvance - signAdvance; // 簽單借支現金已付出
 
   // ── 損益計算 ──
   const totalExp=purchaseTotal+payrollTotal+expenseTotal;
@@ -1587,7 +1587,7 @@ function renderDailyPnl(){
     <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>人事薪資付現</span><span>－$${fmt(payrollTotal)}</span></div>
     <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>其他支出付現</span><span>－$${fmt(expenseTotal)}</span></div>
     ${cashAdvance>0?`<div class="flex-between" style="padding:5px 0;color:var(--red)"><span>現金借支（現金結帳）</span><span>－$${fmt(cashAdvance)}</span></div>`:''}
-    ${signAdvance>0?`<div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text3)"><span>└ 簽單借支（計入應收，不扣現金）</span><span>$${fmt(signAdvance)}</span></div>`:''}
+    ${signAdvance>0?`<div class="flex-between" style="padding:5px 0;color:var(--red)"><span>簽單借支（現金已付出）</span><span>－$${fmt(signAdvance)}</span></div>`:''}
     ${treatTotal>0?`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--text3)"><span>招待酒水成本（參考）</span><span>$${fmt(treatTotal)}</span></div>`:''}
     <hr class="divider" style="margin:8px 0">
     <div class="flex-between" style="padding:8px 0;font-size:14px;font-weight:bold;background:var(--milk2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px">
@@ -1596,7 +1596,7 @@ function renderDailyPnl(){
     </div>
     <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金收入</span><span>$${fmt(cashRev)}</span></div>
     ${signCollectToday>0?`<div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 簽單還款收現</span><span class="text-green">$${fmt(signCollectToday)}</span></div>`:''}
-    <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金支出合計</span><span class="text-red">－$${fmt(totalCashOut+cashAdvance)}</span></div>
+    <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金支出合計</span><span class="text-red">－$${fmt(totalCashOut+cashAdvance+signAdvance)}</span></div>
     <hr class="divider" style="margin:8px 0">
     <div class="flex-between" style="padding:8px 0;font-size:15px;font-weight:bold;border-top:2px solid var(--milk3)">
       <span>📊 當日損益</span>
@@ -2291,7 +2291,7 @@ function renderDailyList(){
     (DB.dailyExpenses||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)
   ):0;
   // Actual cash on hand
-  const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance;
+  const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance - signAdvance; // 簽單借支雖計入應收，但現金已付出
 
   const dayStats=document.getElementById('daily-day-stats');
   if(dayStats){
@@ -2846,7 +2846,7 @@ function renderMonthly(){
   const moSignAdvance=bills2.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
 
   // ── 月帳上現金 ──
-  const moActualCash=cashRev + moSignCollect - (purchaseTotal+payrollTotal+expenseTotal) - moCashAdvance;
+  const moActualCash=cashRev + moSignCollect - (purchaseTotal+payrollTotal+expenseTotal) - moCashAdvance - moSignAdvance; // 簽單借支現金已付出
 
   document.getElementById('mo-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${fmt(revenue)}</div><div class="stat-sub">${workDays}天 ${billCount}張單</div></div>
@@ -2868,7 +2868,7 @@ function renderMonthly(){
     ${moSignCollect>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 本月收到簽單還款</span><span class="text-green">＋$${fmt(moSignCollect)}</span></div>`:''}
     <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金支出（進貨+人事+其他）</span><span class="text-red">－$${fmt(purchaseTotal+payrollTotal+expenseTotal)}</span></div>
     ${moCashAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金借支（現金單）</span><span class="text-red">－$${fmt(moCashAdvance)}</span></div>`:''}
-    ${moSignAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text3)"><span>└ 簽單借支（計入應收）</span><span>$${fmt(moSignAdvance)}</span></div>`:''}
+    ${moSignAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 簽單借支（現金已付出）</span><span class="text-red">－$${fmt(moSignAdvance)}</span></div>`:''}
     <hr class="divider">
     <div class="flex-between" style="padding:5px 0"><span>工作天數</span><span>${workDays} 天</span></div>
     <div class="flex-between" style="padding:5px 0"><span>平均每日營業額</span><span>$${fmt(avgDaily)} / 天</span></div>`;
