@@ -625,6 +625,7 @@ service cloud.firestore {
       <div class="stats-grid" id="sg-overview-stats"></div>
 
       <!-- 逾期警示 -->
+      <div id="sg-recovery-bar"></div>
       <div id="sg-overdue-alert"></div>
 
       <!-- 分頁切換 -->
@@ -2930,13 +2931,26 @@ function renderMonthly(){
   // ── Analysis ──
   const prRatio=revenue>0?Math.round(payrollTotal/revenue*100):0;
   const puRatio=revenue>0?Math.round(purchaseTotal/revenue*100):0;
+  const cashRatio=revenue>0?Math.round(cashRev/revenue*100):0;
+  const signRatio=revenue>0?Math.round(signRev/revenue*100):0;
   const prS=prRatio<35?{cls:'alert-green',txt:'優良 ✓',msg:`人事佔比 ${prRatio}%，控制良好`}:prRatio<50?{cls:'alert-orange',txt:'尚可 ⚠',msg:`人事佔比 ${prRatio}%，偏高`}:{cls:'alert-red',txt:'欠佳 ✕',msg:`人事佔比 ${prRatio}%，過高需檢討`};
   const puS=puRatio<30?{cls:'alert-green',txt:'優良 ✓',msg:`進貨佔比 ${puRatio}%，良好`}:puRatio<45?{cls:'alert-orange',txt:'尚可 ⚠',msg:`進貨佔比 ${puRatio}%，偏高`}:{cls:'alert-red',txt:'欠佳 ✕',msg:`進貨佔比 ${puRatio}%，過高`};
   document.getElementById('mo-analysis').innerHTML=`
-    <div style="margin-bottom:12px"><div class="flex-between small mb8"><span>人事佔比</span><span class="badge ${prS.cls}">${prS.txt}</span></div>
+    <div style="margin-bottom:14px">
+      <div class="flex-between small mb8"><span>💵 現金收入佔比</span><span class="badge badge-green">${cashRatio}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(cashRatio,100)}%;background:var(--green)"></div></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">現金 $${fmt(cashRev)} ／ 總營業額 $${fmt(revenue)}</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="flex-between small mb8"><span>✍️ 簽單收入佔比</span><span class="badge ${signRatio>50?'badge-red':signRatio>30?'badge-orange':'badge-gold'}">${signRatio}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(signRatio,100)}%;background:${signRatio>50?'var(--red)':signRatio>30?'var(--orange)':'var(--gold2)'}"></div></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">簽單 $${fmt(signRev)} ／ 總營業額 $${fmt(revenue)}</div>
+      ${signRatio>50?'<div class="alert alert-red" style="margin-top:6px">⚠ 簽單佔比超過50%，應收帳款偏高，注意追收</div>':signRatio>30?'<div class="alert alert-orange" style="margin-top:6px">注意簽單佔比，持續追蹤應收款項</div>':''}
+    </div>
+    <div style="margin-bottom:14px"><div class="flex-between small mb8"><span>👥 人事佔比</span><span class="badge ${prS.cls}">${prS.txt}</span></div>
     <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(prRatio,100)}%;background:${prRatio<35?'var(--green)':prRatio<50?'var(--orange)':'var(--red)'}"></div></div>
     <div class="alert ${prS.cls}" style="margin-top:6px">${prS.msg}</div></div>
-    <div><div class="flex-between small mb8"><span>進貨佔比</span><span class="badge ${puS.cls}">${puS.txt}</span></div>
+    <div><div class="flex-between small mb8"><span>📦 進貨佔比</span><span class="badge ${puS.cls}">${puS.txt}</span></div>
     <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(puRatio,100)}%;background:${puRatio<30?'var(--green)':puRatio<45?'var(--orange)':'var(--red)'}"></div></div>
     <div class="alert ${puS.cls}" style="margin-top:6px">${puS.msg}</div></div>`;
 
@@ -2946,7 +2960,7 @@ function renderMonthly(){
   const moSignBills=signBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
   const moSignTotal=moSignBills.reduce((s,b)=>s+(+b.amount||0),0);
   const moSignOnly=moSignBills.reduce((s,b)=>s+(+b.signAmt||+b.amount||0),0);
-  const moSignAdvance=moSignBills.reduce((s,b)=>s+(+b.advanceAmt||0),0);
+  const moSBAdvance=moSignBills.reduce((s,b)=>s+(+b.advanceAmt||0),0);
   // Collections received this month (regardless of which month bill was opened)
   const moCollectTotal=signBills.reduce((s,b)=>s+(b.payments||[]).filter(p=>{
     const d=new Date(p.date);return d.getFullYear()===y&&d.getMonth()+1===m;
@@ -2960,8 +2974,8 @@ function renderMonthly(){
       <hr class="divider">
       <div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:bold">本月簽單應收明細</div>
       <div class="flex-between" style="padding:3px 0"><span>本月新開簽單（含借支）</span><span style="color:var(--orange);font-weight:bold">$${fmt(moSignTotal)}</span></div>
-      ${moSignAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中簽單金額</span><span>$${fmt(moSignOnly)}</span></div>
-      <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中現金借支</span><span>$${fmt(moSignAdvance)}</span></div>`:''}
+      ${moSBAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中簽單金額</span><span>$${fmt(moSignOnly)}</span></div>
+      <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中現金借支</span><span>$${fmt(moSBAdvance)}</span></div>`:''}
       <div class="flex-between" style="padding:3px 0"><span>本月實收簽單款</span><span class="text-green">$${fmt(moCollectTotal)}</span></div>
       <div class="flex-between" style="padding:3px 0"><span>本月未收簽單</span><span class="${moSignUnpaid>0?'text-red':'text-green'}">$${fmt(moSignUnpaid)}</span></div>`;
   }
@@ -3090,13 +3104,37 @@ function renderSgOverview(){
   // This month collections
   const moCollect = bills.reduce((s,b)=>s+(b.payments||[]).filter(p=>{const d=new Date(p.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).reduce((ss,p)=>ss+(+p.amount||0),0),0);
 
+  // Recovery ratio
+  const totalRecovery=totalSign>0?Math.round((totalPaid+totalDisc)/totalSign*100):0;
+  const moRecovery=moSign>0?Math.round(moCollect/moSign*100):0;
+  const overdueAmt=overdueBills.reduce((s,b)=>s+getSignBillRemaining(b),0);
+
   document.getElementById('sg-overview-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">簽單總額</div><div class="stat-value">$${fmt(totalSign)}</div><div class="stat-sub">${bills.length} 張</div></div>
-    <div class="stat-card"><div class="stat-label">已收金額</div><div class="stat-value green">$${fmt(totalPaid)}</div></div>
+    <div class="stat-card"><div class="stat-label">已收金額</div><div class="stat-value green">$${fmt(totalPaid+totalDisc)}</div><div class="stat-sub">含折扣$${fmt(totalDisc)}</div></div>
     <div class="stat-card"><div class="stat-label">未收金額</div><div class="stat-value ${totalUnpaid>0?'red':''}">$${fmt(totalUnpaid)}</div></div>
+    <div class="stat-card"><div class="stat-label">整體回收率</div><div class="stat-value ${totalRecovery>=80?'green':totalRecovery>=50?'':'red'}">${totalRecovery}%</div><div class="stat-sub">${totalRecovery>=80?'良好':totalRecovery>=50?'尚可':'偏低'}</div></div>
     <div class="stat-card"><div class="stat-label">本月新增簽單</div><div class="stat-value">$${fmt(moSign)}</div></div>
-    <div class="stat-card"><div class="stat-label">本月實收款</div><div class="stat-value green">$${fmt(moCollect)}</div></div>
-    <div class="stat-card"><div class="stat-label">逾期未收</div><div class="stat-value ${overdueBills.length>0?'red':''}">$${fmt(overdueBills.reduce((s,b)=>s+getSignBillRemaining(b),0))}</div><div class="stat-sub">${overdueBills.length} 張</div></div>`;
+    <div class="stat-card"><div class="stat-label">本月實收款</div><div class="stat-value green">$${fmt(moCollect)}</div><div class="stat-sub">回收率 ${moRecovery}%</div></div>
+    <div class="stat-card"><div class="stat-label">逾期未收</div><div class="stat-value ${overdueBills.length>0?'red':''}">$${fmt(overdueAmt)}</div><div class="stat-sub">${overdueBills.length} 張</div></div>`;
+
+  // Recovery analysis bar
+  const alertEl2=document.getElementById('sg-recovery-bar');
+  if(alertEl2){
+    const rColor=totalRecovery>=80?'var(--green)':totalRecovery>=50?'var(--orange)':'var(--red)';
+    const rMsg=totalRecovery>=80?'回收率良好 ✓':totalRecovery>=50?'回收率尚可，持續催收':' 回收率偏低，需積極追收！';
+    alertEl2.innerHTML=`<div class="card" style="margin-bottom:10px">
+      <div class="card-title">📊 簽單回收分析</div>
+      <div class="flex-between small mb8"><span>整體回收率</span><span style="font-weight:bold;color:${rColor}">${totalRecovery}%</span></div>
+      <div class="progress-bar" style="height:12px"><div class="progress-fill" style="width:${Math.min(totalRecovery,100)}%;background:${rColor}"></div></div>
+      <div style="font-size:11px;margin-top:6px;color:${rColor}">${rMsg}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;font-size:11px;text-align:center">
+        <div style="background:var(--milk2);border-radius:6px;padding:6px"><div style="color:var(--text3)">已收回</div><div style="font-weight:bold;color:var(--green)">$${fmt(totalPaid+totalDisc)}</div></div>
+        <div style="background:var(--milk2);border-radius:6px;padding:6px"><div style="color:var(--text3)">未收回</div><div style="font-weight:bold;color:var(--red)">$${fmt(totalUnpaid)}</div></div>
+        <div style="background:var(--milk2);border-radius:6px;padding:6px"><div style="color:var(--text3)">逾期</div><div style="font-weight:bold;color:var(--red)">$${fmt(overdueAmt)}</div></div>
+      </div>
+    </div>`;
+  }
 
   // Overdue alert
   const alertEl=document.getElementById('sg-overdue-alert');
