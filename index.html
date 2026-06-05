@@ -447,7 +447,11 @@ service cloud.firestore {
 
       <!-- 月度紀錄查詢 -->
       <div class="card">
-        <div class="card-title">月度單據紀錄</div>
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">月度單據紀錄</div>
+          <button class="btn btn-sm btn-outline" onclick="toggleSection('mo-table-body')" id="mo-table-toggle">收合 ▲</button>
+        </div>
+        <div id="mo-table-body">
         <div style="overflow-x:auto"><table>
           <thead><tr><th>日期</th><th>單號</th><th>包廂</th><th>客戶</th><th>營業額</th><th>結帳</th><th>借支</th><th></th></tr></thead>
           <tbody id="dl-tbody"></tbody>
@@ -1608,7 +1612,15 @@ function renderDailyPnl(){
 
 function toggleSection(id){
   const el=document.getElementById(id);
-  if(el) el.style.display=el.style.display==='none'?'':'none';
+  if(!el) return;
+  const isHidden=el.style.display==='none';
+  el.style.display=isHidden?'':'none';
+  // Update button text if toggle button exists
+  const btn=document.getElementById(id.replace('-body','-toggle').replace('daily-','').replace('-section',''));
+  const moBtn=document.getElementById('mo-table-toggle');
+  if(id==='mo-table-body' && moBtn){
+    moBtn.textContent=isHidden?'收合 ▲':'展開 ▼';
+  }
 }
 
 
@@ -2328,13 +2340,34 @@ function renderDailyList(){
   const moCash=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const moSign=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
   const moAdvance=monthBills.reduce((s,r)=>s+(+r.advance||0),0);
+  const moCashAdvance=monthBills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  const moSignAdv=monthBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
+  // Month sign collections from signing system
+  const moSignCollectMo=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date&&p.date.startsWith(`${year}-${String(month).padStart(2,'0')}`))
+    .reduce((ss,p)=>ss+(+p.amount||0),0),0);
+  // Month cash expenses
+  const moCashExpenses=
+    (DB.purchases||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyPayroll||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyExpenses||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0);
+  // Month actual cash
+  const moActualCashCard=moCash + moSignCollectMo - moCashExpenses - moCashAdvance - moSignAdv;
 
   const moStats=document.getElementById('daily-month-stats');
-  if(moStats) moStats.innerHTML=`
+  if(moStats){
+    moStats.style.gridTemplateColumns='repeat(3,1fr)';
+    moStats.innerHTML=`
     <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${moTotal.toLocaleString()}</div><div class="stat-sub">${monthBills.length} 張單</div></div>
-    <div class="stat-card"><div class="stat-label">月帳上現金</div><div class="stat-value green">$${moCash.toLocaleString()}</div></div>
-    <div class="stat-card"><div class="stat-label">月簽單金額</div><div class="stat-value">$${moSign.toLocaleString()}</div></div>
-    <div class="stat-card"><div class="stat-label">月現金借支</div><div class="stat-value ${moAdvance>0?'red':''}">$${moAdvance.toLocaleString()}</div></div>`;
+    <div class="stat-card"><div class="stat-label">月現金收入</div><div class="stat-value green">$${moCash.toLocaleString()}</div><div class="stat-sub">現金結帳</div></div>
+    <div class="stat-card"><div class="stat-label">月簽單金額</div><div class="stat-value" style="color:var(--orange)">$${moSign.toLocaleString()}</div><div class="stat-sub">簽單結帳</div></div>
+    <div class="stat-card"><div class="stat-label">月現金借支</div><div class="stat-value ${moAdvance>0?'red':''}">$${moAdvance.toLocaleString()}</div><div class="stat-sub">${moCashAdvance>0&&moSignAdv>0?`現$${moCashAdvance.toLocaleString()}+簽$${moSignAdv.toLocaleString()}（均扣現金）`:moCashAdvance>0?'現金結帳借支':moAdvance>0?'簽單結帳借支（扣現金）':'-'}</div></div>
+    <div class="stat-card" style="grid-column:span 2;background:${moActualCashCard>=0?'#D4EAD4':'#EAD4D4'};border-color:${moActualCashCard>=0?'var(--green)':'var(--red)'}">
+      <div class="stat-label">💵 月帳上實際現金</div>
+      <div class="stat-value ${moActualCashCard>=0?'green':'red'}">${moActualCashCard>=0?'＋':'－'} $${Math.abs(moActualCashCard).toLocaleString()}</div>
+      <div class="stat-sub">現金收入${moSignCollectMo>0?'＋簽單還款':''} － 進貨 － 人事 － 其他 － 借支</div>
+    </div>`;
+  }
 
   // 當日單據展開列表
   const listEl=document.getElementById('dl-bills-list');
