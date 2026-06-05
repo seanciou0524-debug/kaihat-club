@@ -1136,7 +1136,6 @@ function saveEdit(){
 /* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
-window.addDaily = addDaily;
 window.setDailyToday = setDailyToday;
 window.openBillForm = openBillForm;
 window.closeBillForm = closeBillForm;
@@ -1156,7 +1155,6 @@ window.addPurchase = addPurchase;
 window.addSigning = addSigning;
 window.checkVendorOther = checkVendorOther;
 window.clearLogs = clearLogs;
-window.deleteDaily = deleteDaily;
 window.deletePurchase = deletePurchase;
 window.deleteSigning = deleteSigning;
 window.doLogin = doLogin;
@@ -1184,11 +1182,15 @@ window.saveTarget = saveTarget;
 window.exportExcel = exportExcel;
 window.exportBackup = exportBackup;
 window.importBackup = importBackup;
-window.editDaily = editDaily;
 window.editPurchase = editPurchase;
 window.editSigning = editSigning;
+window.editDaily = editDaily;
 window.saveEdit = saveEdit;
 window.closeEditModal = closeEditModal;
+window.openEditModal = openEditModal;
+window.renderLog = renderLog;
+window.deleteDaily = deleteDaily;
+window.switchAuthTab = switchAuthTab;
 
 /* Firebase Auth 狀態監聽（自動登入） */
 onAuthStateChanged(auth, async user => {
