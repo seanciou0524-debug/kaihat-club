@@ -1644,6 +1644,8 @@ function setReportTab(t){
   if(t==='monthly') renderReport(); else renderYearlyReport();
 }
 
+function updatePayTypeLabel(){ /* radio choice UI feedback only */ }
+
 /* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
@@ -1702,6 +1704,7 @@ window.deleteSignBill = deleteSignBill;
 window.loadClientBills = loadClientBills;
 window.calcColSelected = calcColSelected;
 window.calcColDiscount = calcColDiscount;
+window.updatePayTypeLabel = updatePayTypeLabel;
 window.saveCollection = saveCollection;
 window.renderSgHistory = renderSgHistory;
 window.saveSgSettings = saveSgSettings;
@@ -3387,18 +3390,34 @@ function loadClientBills(){
   if(!client){section.classList.add('hidden');return;}
   section.classList.remove('hidden');
   const bills=(DB.signBills||[]).filter(b=>b.client===client&&getSignBillRemaining(b)>0);
-  document.getElementById('col-bills-list').innerHTML=bills.map(b=>`
-    <div style="background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:5px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+  document.getElementById('col-bills-list').innerHTML=bills.map(b=>{
+    const paid=(b.payments||[]).reduce((s,p)=>s+(+p.amount||0),0);
+    const disc=(b.payments||[]).reduce((s,p)=>s+(+p.discount||0),0);
+    const remaining=getSignBillRemaining(b);
+    const hasPartial=paid>0||disc>0;
+    const payHistory=(b.payments||[]).map(p=>`
+      <div class="flex-between" style="font-size:10px;color:var(--text3);padding:1px 0">
+        <span>${p.date} 還款 $${fmt(p.amount)}${p.discount>0?' 折扣$'+fmt(p.discount):''}</span>
+        <span>${p.note||''}</span>
+      </div>`).join('');
+    return `
+    <div style="background:var(--milk);border:1px solid ${hasPartial?'var(--orange)':'var(--milk3)'};border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:5px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:${hasPartial?'6px':'0'}">
         <input type="checkbox" id="chk-${b.id}" onchange="calcColSelected()" style="width:auto;accent-color:var(--gold2)">
         <div style="flex:1">
           <span style="font-size:12px;font-weight:bold">${b.num||'無單號'}</span>
           <span style="font-size:11px;color:var(--text3);margin:0 6px">${b.date}</span>
           ${isOverdue(b)?'<span class="badge badge-red">逾期</span>':''}
+          ${hasPartial?'<span class="badge badge-orange">部分已收</span>':''}
         </div>
-        <span style="font-weight:bold;color:var(--red)">未收 $${fmt(getSignBillRemaining(b))}</span>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--text3)">總應收 $${fmt(b.amount)}</div>
+          <div style="font-weight:bold;color:var(--red)">未收 $${fmt(remaining)}</div>
+        </div>
       </label>
-    </div>`).join('')||'<div class="small" style="padding:8px;color:var(--text3)">此客戶無未收款單據</div>';
+      ${hasPartial?`<div style="border-top:1px solid var(--milk3);padding-top:4px;margin-left:28px">${payHistory}</div>`:''}
+    </div>`;
+  }).join('')||'<div class="small" style="padding:8px;color:var(--text3)">此客戶無未收款單據</div>';
   calcColSelected();
 }
 
@@ -3442,32 +3461,52 @@ function saveCollection(){
   const bills=DB.signBills||[];
   const selected=bills.filter(b=>{const chk=document.getElementById('chk-'+b.id);return chk&&chk.checked;});
   if(!selected.length){alert('請勾選要核銷的單據');return;}
-  // Distribute payment across selected bills
-  let remaining=actual;
+
   const totalUnpaid=selected.reduce((s,b)=>s+getSignBillRemaining(b),0);
-  const totalDisc=Math.max(0, totalUnpaid-actual);
+  // Check if user selected partial payment or discount
+  const payTypeRadio=document.querySelector('input[name="pay-type"]:checked');
+  const isPartial=actual<totalUnpaid && (!payTypeRadio || payTypeRadio.value==='partial');
+  const totalDisc=Math.max(0,totalUnpaid-actual);
   const payId=Date.now();
-  selected.forEach((b,idx)=>{
+
+  // Distribute: fill each bill in order, last bill gets remainder + discount
+  let remaining=actual;
+  selected.forEach((b,i)=>{
+    if(remaining<=0) return;
     const billRemaining=getSignBillRemaining(b);
     let billPay=0, billDisc=0;
-    if(idx===selected.length-1){
-      // Last bill gets the remainder
-      billPay=remaining;
-      billDisc=Math.max(0, billRemaining-billPay);
-    } else {
+    if(isPartial){
+      // Partial payment: fill bills one by one until money runs out
       billPay=Math.min(remaining, billRemaining);
-      billDisc=0;
+      billDisc=0; // no discount on partial payments
+    } else {
+      // Full payment: last bill absorbs discount/rounding
+      if(i===selected.length-1){
+        billPay=remaining;
+        billDisc=Math.max(0, billRemaining-billPay);
+      } else {
+        billPay=Math.min(remaining, billRemaining);
+        billDisc=0;
+      }
     }
     remaining-=billPay;
     if(!b.payments) b.payments=[];
-    b.payments.push({id:payId+idx, date, amount:billPay, discount:billDisc, note});
+    b.payments.push({id:payId+i, date, amount:billPay, discount:billDisc, note});
   });
-  writeLog('修改',`收款核銷 ${client} 實收$${fmt(actual)} 折扣$${fmt(totalDisc)} 核銷${selected.length}張`);
+
+  const statusMsg=isPartial?
+    `部分收款 $${fmt(actual)}，未收 $${fmt(totalUnpaid-actual)}`:
+    `全額結清 $${fmt(actual)}${totalDisc>0?' 折扣$'+fmt(totalDisc):''}`;
+
+  writeLog('修改',`收款核銷 ${client} ${statusMsg} 共${selected.length}張`);
   scheduleSave();
-  alert(`✅ 收款記錄已儲存！\n客戶：${client}\n實收：$${fmt(actual)}\n折扣：$${fmt(totalDisc)}`);
+  alert(`✅ 收款記錄已儲存！
+客戶：${client}
+${statusMsg}`);
   document.getElementById('col-amount').value='';
   document.getElementById('col-note').value='';
-  renderColClientSelect();
+  loadClientBills(); // refresh bill list to show updated status
+  renderSgClients();
   renderSgOverview();
 }
 
