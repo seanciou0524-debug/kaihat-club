@@ -692,7 +692,7 @@ service cloud.firestore {
                 </div>
                 <div class="form-group" style="margin-bottom:0">
                   <label>折扣/去尾數</label>
-                  <input type="number" id="col-discount" placeholder="0" readonly style="background:var(--milk2)">
+                  <input type="number" id="col-discount" placeholder="0" oninput="calcColFromDiscount()">
                 </div>
               </div>
               <div id="col-check" style="font-size:11px;padding:4px 8px;border-radius:6px;margin-top:4px"></div>
@@ -1646,6 +1646,26 @@ function setReportTab(t){
 
 function updatePayTypeLabel(){ /* radio choice UI feedback only */ }
 
+function calcColFromDiscount(){
+  // When user manually changes discount, update the check display
+  const total=+(document.getElementById('col-selected-total').textContent.replace(/[$,]/g,''))||0;
+  const actual=+document.getElementById('col-amount').value||0;
+  const disc=+document.getElementById('col-discount').value||0;
+  const check=document.getElementById('col-check');
+  if(!actual&&!disc){check.innerHTML='';return;}
+  const net=total-disc;
+  if(actual===net){
+    check.style.cssText='background:#D4EAD4;color:var(--green);padding:6px 10px;border-radius:6px';
+    check.textContent=`✅ 實收 $${fmt(actual)} 折扣 $${fmt(disc)} = 結清`;
+  } else if(actual<net){
+    check.style.cssText='background:#EAE0C8;color:var(--gold2);padding:6px 10px;border-radius:6px';
+    check.textContent=`實收 $${fmt(actual)} 折扣 $${fmt(disc)}，未收 $${fmt(net-actual)}`;
+  } else {
+    check.style.cssText='background:#EAD4D4;color:var(--red);padding:6px 10px;border-radius:6px';
+    check.textContent=`⚠ 實收＋折扣超過應收 $${fmt(actual+disc-total)}`;
+  }
+}
+
 /* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
@@ -1705,6 +1725,7 @@ window.loadClientBills = loadClientBills;
 window.calcColSelected = calcColSelected;
 window.calcColDiscount = calcColDiscount;
 window.updatePayTypeLabel = updatePayTypeLabel;
+window.calcColFromDiscount = calcColFromDiscount;
 window.saveCollection = saveCollection;
 window.renderSgHistory = renderSgHistory;
 window.saveSgSettings = saveSgSettings;
@@ -3463,10 +3484,10 @@ function saveCollection(){
   if(!selected.length){alert('請勾選要核銷的單據');return;}
 
   const totalUnpaid=selected.reduce((s,b)=>s+getSignBillRemaining(b),0);
-  // Check if user selected partial payment or discount
-  const payTypeRadio=document.querySelector('input[name="pay-type"]:checked');
-  const isPartial=actual<totalUnpaid && (!payTypeRadio || payTypeRadio.value==='partial');
-  const totalDisc=Math.max(0,totalUnpaid-actual);
+  const manualDisc=+document.getElementById('col-discount').value||0;
+  // isPartial: actual+discount < totalUnpaid means not fully settled
+  const isPartial=(actual+manualDisc)<totalUnpaid;
+  const totalDisc=isPartial?0:manualDisc; // use manual discount input
   const payId=Date.now();
 
   // Distribute: fill each bill in order, last bill gets remainder + discount
@@ -3483,7 +3504,7 @@ function saveCollection(){
       // Full payment: last bill absorbs discount/rounding
       if(i===selected.length-1){
         billPay=remaining;
-        billDisc=Math.max(0, billRemaining-billPay);
+        billDisc=Math.max(0, Math.min(totalDisc, billRemaining-billPay));
       } else {
         billPay=Math.min(remaining, billRemaining);
         billDisc=0;
