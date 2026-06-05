@@ -2294,11 +2294,19 @@ function renderDailyList(){
   const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance;
 
   const dayStats=document.getElementById('daily-day-stats');
-  if(dayStats) dayStats.innerHTML=`
+  if(dayStats){
+    dayStats.style.gridTemplateColumns='repeat(3,1fr)';
+    dayStats.innerHTML=`
     <div class="stat-card"><div class="stat-label">當日營業額</div><div class="stat-value">$${dayTotal.toLocaleString()}</div><div class="stat-sub">${todayBills.length} 張單</div></div>
-    <div class="stat-card"><div class="stat-label">帳上現金</div><div class="stat-value ${dayActualCash>=0?'green':'red'}">$${Math.abs(dayActualCash).toLocaleString()}</div><div class="stat-sub">${dayActualCash<0?'現金不足':'含收支計算'}</div></div>
-    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${daySign.toLocaleString()}</div></div>
-    <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div></div>`;
+    <div class="stat-card"><div class="stat-label">現金收入</div><div class="stat-value green">$${dayCashRev.toLocaleString()}</div><div class="stat-sub">現金結帳</div></div>
+    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value" style="color:var(--orange)">$${daySign.toLocaleString()}</div><div class="stat-sub">簽單結帳</div></div>
+    <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div><div class="stat-sub">${dayCashAdvance>0&&signAdvance>0?`現金$${dayCashAdvance.toLocaleString()}+簽單$${signAdvance.toLocaleString()}`:dayCashAdvance>0?'現金結帳借支':dayAdvance>0?'簽單結帳借支':'-'}</div></div>
+    <div class="stat-card" style="grid-column:span 2;background:${dayActualCash>=0?'#D4EAD4':'#EAD4D4'};border-color:${dayActualCash>=0?'var(--green)':'var(--red)'}">
+      <div class="stat-label">💵 帳上實際現金</div>
+      <div class="stat-value ${dayActualCash>=0?'green':'red'}">${dayActualCash>=0?'＋':'－'} $${Math.abs(dayActualCash).toLocaleString()}</div>
+      <div class="stat-sub">現金收入${daySignCollect>0?'＋還款':''} － 進貨 － 人事 － 其他${dayCashAdvance>0?' － 現金借支':''}</div>
+    </div>`;
+  }
 
   // 月統計
   const monthBills=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===month;});
