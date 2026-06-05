@@ -2850,6 +2850,7 @@ function addPI(t,obj){ const k=prKey(); DB.payroll[k][t].push({...obj}); schedul
 function moKey(){ return ym(document.getElementById('mo-year').value, document.getElementById('mo-month').value); }
 
 function renderMonthly(){
+  try{
   const k=moKey(); const{y,m}=parseYM(k);
 
   // ── 月營業資料 ──
@@ -3043,6 +3044,7 @@ function renderMonthly(){
 
   // Save monthly snapshot to DB for report
   if(!DB.monthly) DB.monthly={};
+  } catch(err){ console.error('renderMonthly ERROR:', err.message, err); alert('月度結算錯誤: '+err.message); return; }
   DB.monthly[k]={
     revenue, cashRev, signRev, workDays, billCount, avgDaily,
     purchaseTotal, puA, puB, puC,
