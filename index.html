@@ -449,11 +449,11 @@ service cloud.firestore {
       <div class="card">
         <div class="card-title">月度單據紀錄</div>
         <div style="overflow-x:auto"><table>
-          <thead><tr><th>日期</th><th>單號</th><th>包廂</th><th>營業額</th><th>結帳</th><th>借支</th><th></th></tr></thead>
+          <thead><tr><th>日期</th><th>單號</th><th>包廂</th><th>客戶</th><th>營業額</th><th>結帳</th><th>借支</th><th></th></tr></thead>
           <tbody id="dl-tbody"></tbody>
           <tfoot>
             <tr class="tfoot">
-              <td colspan="3">合計</td>
+              <td colspan="4">合計</td>
               <td id="dl-t-total">$0</td>
               <td id="dl-t-sign-cash"></td>
               <td id="dl-t-advance">$0</td>
@@ -956,6 +956,7 @@ function ensureSchema(){
   if(!DB.dailyExpenses) DB.dailyExpenses = [];
   if(!DB.signBills) DB.signBills = [];
   if(!DB.sgSettings) DB.sgSettings = { overdueDays: 30 };
+  if(!DB.signBillDeleted) DB.signBillDeleted = [];
 }
 
 /* ════════════════════════════════════════
@@ -1324,17 +1325,30 @@ function saveEdit(){
     b.room=document.getElementById('ed-room').value;
     b.roomFee=+document.getElementById('ed-room-fee').value||0;
     b.payType=document.getElementById('ed-pay-type').value;
+    b.client=document.getElementById('ed-client')?.value||b.client||'';
     b.advance=+document.getElementById('ed-advance').value||0;
     b.discount=+document.getElementById('ed-discount').value||0;
     b.discountNote=document.getElementById('ed-discount-note').value;
     b.note=document.getElementById('ed-note').value;
+    b.roomFee=+document.getElementById('ed-room-fee').value||b.roomFee||0;
+    // Handle mixed payment
+    if(b.payType==='mixed'){
+      b.cashAmt=+document.getElementById('ed-cash-amt')?.value||b.cashAmt||0;
+      b.signAmt=+document.getElementById('ed-sign-amt')?.value||b.signAmt||0;
+    } else if(b.payType==='cash'){
+      b.cashAmt=0; b.signAmt=0;
+    } else {
+      b.cashAmt=0; b.signAmt=0;
+    }
     // recalc total
     const tfTotal=b.tableFees?b.tableFees.reduce((s,r)=>s+r.fee,0):0;
     const dTotal=b.drinks?b.drinks.reduce((s,r)=>s+r.amount,0):0;
     const fTotal=b.foods?b.foods.reduce((s,r)=>s+r.amount,0):0;
     b.totalOrig=b.roomFee+tfTotal+dTotal+fTotal;
     b.total=Math.max(0, b.totalOrig-b.discount);
-    writeLog('修改',`單據 ${b.num||'無號'} ${b.room||''} 結帳改為${b.payType==='sign'?'簽單':'現金'}`);
+    // sync sign bill if needed
+    if(b.payType==='sign'||b.payType==='mixed') syncSignBillsFromDaily();
+    writeLog('修改',`單據 ${b.num||'無號'} ${b.client||''} ${b.room||''} 結帳:${b.payType}`);
     scheduleSave(); closeEditModal(); renderDailyList();
   }
 }
@@ -2144,6 +2158,10 @@ function saveBill(){
   const num=document.getElementById('b-num').value.trim();
   const room=document.getElementById('b-room').value.trim();
   const client=document.getElementById('b-client').value.trim();
+  // Warn if sign/mixed without client name
+  if((payType==='sign'||payType==='mixed')&&!client){
+    if(!confirm('⚠️ 簽單結帳建議填寫客戶姓名，以便追蹤應收帳款。\n確定不填寫客戶姓名嗎？')) return;
+  }
   const roomFee=+document.getElementById('b-room-fee').value||0;
   const payType=document.getElementById('b-pay-type').value;
   const advance=+document.getElementById('b-advance').value||0;
@@ -2262,6 +2280,7 @@ function renderDailyList(){
           <div>
             <span style="font-weight:bold;font-size:13px">${b.num||'無單號'}</span>
             <span style="margin:0 8px;color:var(--text3)">包廂 ${b.room||'-'}</span>
+            ${b.client?`<span style="margin-right:6px;font-size:12px;color:var(--brown2);font-weight:bold">${b.client}</span>`:''}
             ${payBadge}
           </div>
           <div class="flex gap8" style="align-items:center">
@@ -2289,7 +2308,7 @@ function renderDailyList(){
     const payBadge=b.payType==='sign'?'<span class="badge badge-orange">簽單</span>':b.payType==='mixed'?'<span class="badge badge-gold">混合</span>':'<span class="badge badge-green">現金</span>';
     const canEdit=['admin','accounting'].includes(currentRole);
     return `<tr>
-      <td>${b.date}</td><td>${b.num||'-'}</td><td>${b.room||'-'}</td>
+      <td>${b.date}</td><td>${b.num||'-'}</td><td>${b.room||'-'}</td><td>${b.client||'-'}</td>
       <td>$${(+b.total||0).toLocaleString()}${b.discount>0?'<span class="small text-red"> (-$'+(+b.discount).toLocaleString()+')</span>':''}</td>
       <td>${payBadge}</td>
       <td>${b.advance>0?'$'+(+b.advance).toLocaleString():'-'}</td>
@@ -2309,72 +2328,110 @@ function renderDailyList(){
 }
 
 function renderBillDetail(b){
+  const div=(label,val,opts={})=>{
+    const {indent=false,bold=false,red=false,green=false,orange=false,small=false,border=false}=opts;
+    const color=red?'color:var(--red)':green?'color:var(--green)':orange?'color:var(--orange)':'';
+    const pad=indent?'padding:2px 8px':'padding:4px 0';
+    const fw=bold?'font-weight:bold':'';
+    const fs=small?'font-size:11px':'font-size:12px';
+    const bt=border?'border-top:1px solid var(--milk3);margin-top:6px;padding-top:4px':'';
+    return `<div class="flex-between" style="${pad};${fw};${fs};${color};${bt}"><span>${label}</span><span>$${Number(val||0).toLocaleString()}</span></div>`;
+  };
+  const section=(title)=>`<div style="padding:3px 0;color:var(--text2);font-size:10px;letter-spacing:1px;border-top:1px solid var(--milk3);margin-top:6px;margin-bottom:2px">${title}</div>`;
+
   let html='<div style="font-size:12px">';
 
-  // 包廂費
-  if(b.roomFee>0) html+=`<div class="flex-between" style="padding:3px 0"><span style="color:var(--text2)">包廂費</span><span>$${(+b.roomFee).toLocaleString()}</span></div>`;
+  // ── 包廂費 ──
+  html+=section('📋 基本費用');
+  html+=div('包廂費', b.roomFee||0);
 
-  // 檯費
+  // ── 檯費 ──
+  html+=section('👯 檯費明細');
   if(b.tableFees&&b.tableFees.length){
-    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">檯費明細</div>`;
     b.tableFees.forEach(f=>{
-      html+=`<div class="flex-between" style="padding:2px 8px"><span>${f.name||'-'} ${f.startTime?f.startTime+' ~ '+f.endTime:''}</span><span>$${(+f.fee||0).toLocaleString()}</span></div>`;
+      const time=f.startTime&&f.endTime?` ${f.startTime}～${f.endTime}`:'';
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${f.name||'-'}${time}</span><span>$${(+f.fee||0).toLocaleString()}</span></div>`;
     });
-    html+=`<div class="flex-between" style="padding:3px 0;font-weight:bold"><span>檯費合計</span><span>$${(+b.tableFeeTotal||0).toLocaleString()}</span></div>`;
+    html+=div('檯費合計', b.tableFeeTotal||0, {bold:true});
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無檯費</div>`;
+    html+=div('檯費合計', 0, {bold:true});
   }
 
-  // 酒水
+  // ── 酒水 ──
+  html+=section('🍾 酒水明細');
   if(b.drinks&&b.drinks.length){
-    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">酒水明細</div>`;
     b.drinks.forEach(d=>{
-      html+=`<div class="flex-between" style="padding:2px 8px"><span>${d.vendor?'['+d.vendor+'] ':''}${d.item||'-'}</span><span>$${(+d.amount||0).toLocaleString()}</span></div>`;
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${d.vendor?'['+d.vendor+'] ':''}${d.item||'-'}</span><span>$${(+d.amount||0).toLocaleString()}</span></div>`;
     });
-    html+=`<div class="flex-between" style="padding:3px 0;font-weight:bold"><span>酒水合計</span><span>$${(+b.drinkTotal||0).toLocaleString()}</span></div>`;
+    html+=div('酒水合計', b.drinkTotal||0, {bold:true});
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無酒水</div>`;
+    html+=div('酒水合計', 0, {bold:true});
   }
 
-  // 小菜
+  // ── 小菜 ──
+  html+=section('🥗 小菜明細');
   if(b.foods&&b.foods.length){
-    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">小菜明細</div>`;
     b.foods.forEach(f=>{
-      html+=`<div class="flex-between" style="padding:2px 8px"><span>${f.item||'-'}</span><span>$${(+f.amount||0).toLocaleString()}</span></div>`;
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${f.item||'-'}</span><span>$${(+f.amount||0).toLocaleString()}</span></div>`;
     });
-    html+=`<div class="flex-between" style="padding:3px 0;font-weight:bold"><span>小菜合計</span><span>$${(+b.foodTotal||0).toLocaleString()}</span></div>`;
+    html+=div('小菜合計', b.foodTotal||0, {bold:true});
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無小菜</div>`;
+    html+=div('小菜合計', 0, {bold:true});
   }
 
-  // 招待酒水
+  // ── 招待酒水 ──
+  html+=section('🎁 招待酒水（不計入營業額）');
   if(b.treats&&b.treats.length){
-    html+=`<div style="padding:4px 0;color:var(--text2);font-size:11px;border-top:1px solid var(--milk3);margin-top:4px">🎁 招待酒水（不計入營業額）</div>`;
     b.treats.forEach(t=>{
       const typeLabel=t.treatType==='self'?'店內自飲':'招待客人';
       html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${t.vendor?'['+t.vendor+'] ':''}${t.item||'-'} <span class="badge ${t.treatType==='self'?'badge-gold':'badge-green'}">${typeLabel}</span></span><span style="color:var(--red)">$${(+t.amount||0).toLocaleString()}</span></div>`;
     });
-    html+=`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--red)"><span>招待小計</span><span>$${(+b.treatTotal||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--red);font-weight:bold"><span>招待小計</span><span>$${(+b.treatTotal||0).toLocaleString()}</span></div>`;
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無招待</div>`;
   }
 
-  // 借支
-  if(b.advance>0){
-    const advNote=(b.payType==='sign'||b.payType==='mixed')?'（已計入簽單應收）':'（另外記錄）';
-    html+=`<div class="flex-between" style="padding:3px 0;color:var(--red);border-top:1px solid var(--milk3);margin-top:4px"><span>現金借支 <span style="font-size:10px;color:var(--text3)">${advNote}</span></span><span>$${(+b.advance).toLocaleString()}</span></div>`;
-  }
+  // ── 現金借支 ──
+  html+=section('💵 現金借支');
+  const advNote=(b.payType==='sign'||b.payType==='mixed')?'（已計入簽單應收）':'（另外記錄，不影響營業額）';
+  html+=`<div class="flex-between" style="padding:3px 0;font-size:12px"><span>現金借支 <span style="font-size:10px;color:var(--text3)">${advNote}</span></span><span style="color:var(--red)">$${(+b.advance||0).toLocaleString()}</span></div>`;
 
-  // 沖銷/折扣
+  // ── 沖銷/折扣 ──
+  html+=section('🔖 沖銷/折扣');
   if(b.discount>0){
-    html+=`<div class="flex-between" style="padding:3px 0;color:var(--red);border-top:1px solid var(--milk3);margin-top:4px">
-      <span>沖銷/折扣${b.discountNote?' ('+b.discountNote+')':''}</span>
-      <span>-$${(+b.discount).toLocaleString()}</span>
-    </div>`;
-    html+=`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--text3)"><span>原始小計</span><span>$${(+b.totalOrig||+b.total+b.discount).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:3px 0;font-size:12px;color:var(--red)"><span>沖銷${b.discountNote?' — '+b.discountNote:''}</span><span>－$${(+b.discount).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 0;font-size:11px;color:var(--text3)"><span>原始小計</span><span>$${(+b.totalOrig||+(b.total||0)+(+b.discount||0)).toLocaleString()}</span></div>`;
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無沖銷折扣</div>`;
   }
-  // 結帳方式
-  if(b.payType==='mixed'){
-    html+=`<div style="padding:4px 0;border-top:1px solid var(--milk3);margin-top:4px">
-      <div class="flex-between" style="padding:2px 8px;font-size:11px"><span>現金</span><span class="text-green">$${(+b.cashAmt||0).toLocaleString()}</span></div>
-      <div class="flex-between" style="padding:2px 8px;font-size:11px"><span>簽單</span><span style="color:var(--orange)">$${(+b.signAmt||0).toLocaleString()}</span></div>
-    </div>`;
+
+  // ── 結帳方式 ──
+  html+=section('💳 結帳方式');
+  if(b.payType==='cash'){
+    html+=`<div style="padding:3px 0;font-size:12px"><span class="badge badge-green">全額現金</span> <span style="margin-left:6px">$${(+b.total||0).toLocaleString()}</span></div>`;
+  } else if(b.payType==='sign'){
+    const signTotal=(+b.total||0)+(+b.advance||0);
+    html+=`<div style="padding:3px 0;font-size:12px"><span class="badge badge-orange">全額簽單</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>簽單金額</span><span style="color:var(--orange)">$${(+b.total||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>借支（應收）</span><span style="color:var(--red)">$${(+b.advance||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px;font-weight:bold"><span>簽單總應收</span><span style="color:var(--red)">$${signTotal.toLocaleString()}</span></div>`;
+  } else if(b.payType==='mixed'){
+    const signTotal=(+b.signAmt||0)+(+b.advance||0);
+    html+=`<div style="padding:3px 0;font-size:12px"><span class="badge badge-gold">現金＋簽單混合</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>現金</span><span class="text-green">$${(+b.cashAmt||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>簽單</span><span style="color:var(--orange)">$${(+b.signAmt||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>借支（計入簽單應收）</span><span style="color:var(--red)">$${(+b.advance||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px;font-weight:bold"><span>簽單總應收</span><span style="color:var(--red)">$${signTotal.toLocaleString()}</span></div>`;
   }
-  // 總計
-  html+=`<div class="flex-between" style="padding:6px 0;font-weight:bold;font-size:13px;border-top:2px solid var(--milk3);margin-top:4px"><span>營業額合計</span><span style="color:var(--brown3)">$${(+b.total||0).toLocaleString()}</span></div>`;
-  if(b.note) html+=`<div style="color:var(--text3);font-size:11px;padding:3px 0">備註：${b.note}</div>`;
+
+  // ── 營業額合計 ──
+  html+=`<div class="flex-between" style="padding:8px 0;font-weight:bold;font-size:14px;border-top:2px solid var(--brown3);margin-top:8px;color:var(--brown3)">
+    <span>營業額合計</span><span>$${(+b.total||0).toLocaleString()}</span>
+  </div>`;
+  if(b.note) html+=`<div style="color:var(--text3);font-size:11px;padding:3px 0;border-top:1px solid var(--milk3);margin-top:4px">📝 備註：${b.note}</div>`;
   html+='</div>';
   return html;
 }
@@ -2411,22 +2468,67 @@ function editBill(id){
       <div class="form-group"><label>單號</label><input type="text" id="ed-num" value="${b.num||''}"></div>
       <div class="form-group"><label>包廂號</label><input type="text" id="ed-room" value="${b.room||''}"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>包廂費</label><input type="number" id="ed-room-fee" value="${b.roomFee||0}"></div>
-      <div class="form-group"><label>結帳方式</label>
-        <select id="ed-pay-type">
-          <option value="cash" ${b.payType==='cash'?'selected':''}>現金</option>
-          <option value="sign" ${b.payType==='sign'?'selected':''}>簽單</option>
-        </select>
-      </div>
+    <div class="form-group"><label>客戶姓名</label><input type="text" id="ed-client" value="${b.client||''}"></div>
+    <div class="form-group"><label>包廂費</label><input type="number" id="ed-room-fee" value="${b.roomFee||0}"></div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">檯費明細（只能看，如需修改請刪除重建）</div>
+      ${(b.tableFees||[]).length ? (b.tableFees||[]).map(f=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${f.name||'-'} ${f.startTime?f.startTime+'～'+f.endTime:''}</span>
+          <span>$${(+f.fee||0).toLocaleString()}</span>
+        </div>`).join('') + `<div class="flex-between" style="font-size:11px;padding:3px 4px;font-weight:bold"><span>小計</span><span>$${(+b.tableFeeTotal||0).toLocaleString()}</span></div>`
+      : '<div style="font-size:11px;color:var(--text3)">無檯費</div>'}
     </div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">酒水明細（只能看，如需修改請刪除重建）</div>
+      ${(b.drinks||[]).length ? (b.drinks||[]).map(d=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${d.vendor?'['+d.vendor+'] ':''}${d.item||'-'}</span>
+          <span>$${(+d.amount||0).toLocaleString()}</span>
+        </div>`).join('') + `<div class="flex-between" style="font-size:11px;padding:3px 4px;font-weight:bold"><span>小計</span><span>$${(+b.drinkTotal||0).toLocaleString()}</span></div>`
+      : '<div style="font-size:11px;color:var(--text3)">無酒水</div>'}
+    </div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">小菜明細（只能看，如需修改請刪除重建）</div>
+      ${(b.foods||[]).length ? (b.foods||[]).map(f=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${f.item||'-'}</span>
+          <span>$${(+f.amount||0).toLocaleString()}</span>
+        </div>`).join('') + `<div class="flex-between" style="font-size:11px;padding:3px 4px;font-weight:bold"><span>小計</span><span>$${(+b.foodTotal||0).toLocaleString()}</span></div>`
+      : '<div style="font-size:11px;color:var(--text3)">無小菜</div>'}
+    </div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">招待酒水（只能看，如需修改請刪除重建）</div>
+      ${(b.treats||[]).length ? (b.treats||[]).map(t=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${t.item||'-'} <span class="badge ${t.treatType==='self'?'badge-gold':'badge-green'}">${t.treatType==='self'?'自飲':'招待'}</span></span>
+          <span style="color:var(--red)">$${(+t.amount||0).toLocaleString()}</span>
+        </div>`).join('')
+      : '<div style="font-size:11px;color:var(--text3)">無招待</div>'}
+    </div>
+
+    <div class="form-group"><label>結帳方式</label>
+      <select id="ed-pay-type">
+        <option value="cash" ${b.payType==='cash'?'selected':''}>全額現金</option>
+        <option value="sign" ${b.payType==='sign'?'selected':''}>全額簽單</option>
+        <option value="mixed" ${b.payType==='mixed'?'selected':''}>現金＋簽單混合</option>
+      </select>
+    </div>
+    ${b.payType==='mixed'?`
+    <div class="form-row">
+      <div class="form-group"><label>現金金額</label><input type="number" id="ed-cash-amt" value="${b.cashAmt||0}"></div>
+      <div class="form-group"><label>簽單金額</label><input type="number" id="ed-sign-amt" value="${b.signAmt||0}"></div>
+    </div>`:''}
     <div class="form-row">
       <div class="form-group"><label>沖銷/折扣金額</label><input type="number" id="ed-discount" value="${b.discount||0}"></div>
       <div class="form-group"><label>折扣說明</label><input type="text" id="ed-discount-note" value="${b.discountNote||''}"></div>
     </div>
     <div class="form-group"><label>現金借支</label><input type="number" id="ed-advance" value="${b.advance||0}"></div>
-    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${b.note||''}"></div>
-    <div class="alert alert-orange" style="font-size:11px">⚠️ 此編輯僅修改基本資料與結帳方式。如需修改明細，請刪除後重新輸入。</div>`;
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${b.note||''}"></div>`;
   openEditModal();
 }
 
@@ -3050,10 +3152,17 @@ function saveAddSign(){
 }
 
 function deleteSignBill(id){
-  if(!canWrite()){alert('無權限');return;}
+  if(!canWrite()){ alert('無權限'); return; }
   if(!confirm('確認刪除此筆簽單？此操作不可復原')) return;
   const b=(DB.signBills||[]).find(x=>x.id===id);
   writeLog('刪除',`簽單 ${b?b.client:''} ${b?b.num:''} $${b?fmt(b.amount):''}`);
+  // 加入黑名單，防止 sync 重新建立
+  if(b && b.source==='bill' && b.sourceId){
+    if(!DB.signBillDeleted) DB.signBillDeleted=[];
+    if(!DB.signBillDeleted.includes(b.sourceId)){
+      DB.signBillDeleted.push(b.sourceId);
+    }
+  }
   DB.signBills=DB.signBills.filter(x=>x.id!==id);
   scheduleSave(); renderSgClients();
 }
@@ -3206,6 +3315,8 @@ function syncSignBillsFromDaily(){
   (DB.daily||[]).forEach(b=>{
     const signAmt=b.payType==='sign'?+b.total||0:b.payType==='mixed'?+b.signAmt||0:0;
     if(signAmt<=0) return;
+    // Skip if manually deleted
+    if((DB.signBillDeleted||[]).includes(b.id)) return;
     // B: 只有簽單/混合結帳才加入借支
     const advance=+b.advance||0;
     const totalSignAmt=signAmt+advance;
