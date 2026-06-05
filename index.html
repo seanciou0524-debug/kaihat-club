@@ -2352,7 +2352,10 @@ function renderBillDetail(b){
   }
 
   // 借支
-  if(b.advance>0) html+=`<div class="flex-between" style="padding:3px 0;color:var(--red);border-top:1px solid var(--milk3);margin-top:4px"><span>現金借支</span><span>$${(+b.advance).toLocaleString()}</span></div>`;
+  if(b.advance>0){
+    const advNote=(b.payType==='sign'||b.payType==='mixed')?'（已計入簽單應收）':'（另外記錄）';
+    html+=`<div class="flex-between" style="padding:3px 0;color:var(--red);border-top:1px solid var(--milk3);margin-top:4px"><span>現金借支 <span style="font-size:10px;color:var(--text3)">${advNote}</span></span><span>$${(+b.advance).toLocaleString()}</span></div>`;
+  }
 
   // 沖銷/折扣
   if(b.discount>0){
@@ -2766,6 +2769,32 @@ function renderMonthly(){
     <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(puRatio,100)}%;background:${puRatio<30?'var(--green)':puRatio<45?'var(--orange)':'var(--red)'}"></div></div>
     <div class="alert ${puS.cls}" style="margin-top:6px">${puS.msg}</div></div>`;
 
+  // ── Sign Bill Monthly Stats ──
+  const signBills=DB.signBills||[];
+  // New sign bills opened this month (amount = signAmt + advanceAmt)
+  const moSignBills=signBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const moSignTotal=moSignBills.reduce((s,b)=>s+(+b.amount||0),0);
+  const moSignOnly=moSignBills.reduce((s,b)=>s+(+b.signAmt||+b.amount||0),0);
+  const moSignAdvance=moSignBills.reduce((s,b)=>s+(+b.advanceAmt||0),0);
+  // Collections received this month (regardless of which month bill was opened)
+  const moCollectTotal=signBills.reduce((s,b)=>s+(b.payments||[]).filter(p=>{
+    const d=new Date(p.date);return d.getFullYear()===y&&d.getMonth()+1===m;
+  }).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+  const moSignUnpaid=moSignBills.reduce((s,b)=>s+getSignBillRemaining(b),0);
+
+  // Append sign bill stats to revenue detail
+  const revEl=document.getElementById('mo-revenue-detail');
+  if(revEl && moSignTotal>0){
+    revEl.innerHTML+=`
+      <hr class="divider">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:bold">本月簽單應收明細</div>
+      <div class="flex-between" style="padding:3px 0"><span>本月新開簽單（含借支）</span><span style="color:var(--orange);font-weight:bold">$${fmt(moSignTotal)}</span></div>
+      ${moSignAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中簽單金額</span><span>$${fmt(moSignOnly)}</span></div>
+      <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中現金借支</span><span>$${fmt(moSignAdvance)}</span></div>`:''}
+      <div class="flex-between" style="padding:3px 0"><span>本月實收簽單款</span><span class="text-green">$${fmt(moCollectTotal)}</span></div>
+      <div class="flex-between" style="padding:3px 0"><span>本月未收簽單</span><span class="${moSignUnpaid>0?'text-red':'text-green'}">$${fmt(moSignUnpaid)}</span></div>`;
+  }
+
   // Save monthly snapshot to DB for report
   if(!DB.monthly) DB.monthly={};
   DB.monthly[k]={
@@ -2775,6 +2804,7 @@ function renderMonthly(){
     expenseTotal, expByName,
     treatTotal, discountTotal, advanceTotal,
     totalExp, netProfit,
+    moSignTotal, moSignOnly, moSignAdvance, moCollectTotal, moSignUnpaid,
     updatedAt: Date.now()
   };
 }
@@ -2879,7 +2909,7 @@ function setSgTab(t){
 function renderSgOverview(){
   if(!document.getElementById('sg-overview-stats')) return;
   const bills = DB.signBills || [];
-  const totalSign = bills.reduce((s,b)=>s+(+b.amount||0),0);
+  const totalSign = bills.reduce((s,b)=>s+(+b.amount||0),0); // includes advance for sign bills
   const totalPaid = bills.reduce((s,b)=>s+(b.payments||[]).reduce((ss,p)=>ss+(+p.amount||0),0),0);
   const totalDisc = bills.reduce((s,b)=>s+(b.payments||[]).reduce((ss,p)=>ss+(+p.discount||0),0),0);
   const totalUnpaid = totalSign - totalPaid - totalDisc;
@@ -2959,6 +2989,7 @@ function renderSgClients(){
           const bPaid=(b.payments||[]).reduce((s,p)=>s+(+p.amount||0),0);
           const bDisc=(b.payments||[]).reduce((s,p)=>s+(+p.discount||0),0);
           const statusBadge=bStatus==='paid'?'<span class="badge badge-green">已結清</span>':bStatus==='partial'?'<span class="badge badge-orange">部分收款</span>':'<span class="badge badge-red">未收款</span>';
+          const hasAdv=(+b.advanceAmt||0)>0;
           return `<div style="background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:5px${bOverdue?' border-left:3px solid var(--red)':''}">
             <div class="flex-between mb8">
               <div>
@@ -2973,7 +3004,10 @@ function renderSgClients(){
               </div>
             </div>
             <div class="flex-between" style="font-size:12px">
-              <span>簽單 $${fmt(b.amount)}</span>
+              <div>
+                <span>總應收 $${fmt(b.amount)}</span>
+                ${hasAdv?`<span style="font-size:10px;color:var(--text3);margin-left:6px">（簽單$${fmt(b.signAmt||b.amount)}＋借支$${fmt(b.advanceAmt||0)}）</span>`:''}
+              </div>
               <span class="text-green">已收 $${fmt(bPaid)}${bDisc>0?' (+折扣$'+fmt(bDisc)+')':''}</span>
               <span class="${remaining>0?'text-red':'text-green'}">未收 $${fmt(remaining)}</span>
             </div>
@@ -3172,18 +3206,26 @@ function syncSignBillsFromDaily(){
   (DB.daily||[]).forEach(b=>{
     const signAmt=b.payType==='sign'?+b.total||0:b.payType==='mixed'?+b.signAmt||0:0;
     if(signAmt<=0) return;
+    // B: 只有簽單/混合結帳才加入借支
+    const advance=+b.advance||0;
+    const totalSignAmt=signAmt+advance;
     const exists=DB.signBills.find(x=>x.sourceId===b.id);
     if(!exists){
       DB.signBills.push({
         id: Date.now()+Math.random(),
         date:b.date, num:b.num||'', client:b.client||'',
-        room:b.room||'', amount:signAmt,
+        room:b.room||'',
+        signAmt:signAmt,      // 簽單金額
+        advanceAmt:advance,   // 借支金額
+        amount:totalSignAmt,  // 總應收 = 簽單 + 借支
         source:'bill', sourceId:b.id,
         note:b.note||'', payments:[]
       });
     } else {
       // Update amount if bill was edited
-      exists.amount=signAmt;
+      exists.signAmt=signAmt;
+      exists.advanceAmt=advance;
+      exists.amount=totalSignAmt;
     }
   });
 }
