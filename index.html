@@ -2303,8 +2303,9 @@ function renderDailyList(){
     (DB.dailyPayroll||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)+
     (DB.dailyExpenses||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)
   ):0;
+  const signAdvance=todayBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
   // Actual cash on hand
-  const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance - signAdvance; // 簽單借支雖計入應收，但現金已付出
+  const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance - signAdvance;
 
   const dayStats=document.getElementById('daily-day-stats');
   if(dayStats){
@@ -2384,8 +2385,7 @@ function renderDailyList(){
       <td>${payBadge}</td>
       <td>${b.advance>0?'$'+(+b.advance).toLocaleString():'-'}</td>
       <td style="white-space:nowrap">
-        ${canEdit?`<button class="btn btn-sm btn-outline" onclick="editBill(${b.id})" style="margin-right:4px">✏️</button>`:''}
-        ${canEdit?`<button class="btn btn-sm btn-danger" onclick="deleteBill(${b.id})">刪</button>`:''}
+        ${canEdit?`<button class="btn btn-sm btn-outline" onclick="editBill(${b.id})">✏️</button>`:''}
       </td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">本月尚無單據</td></tr>';
