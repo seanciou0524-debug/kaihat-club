@@ -637,12 +637,16 @@ service cloud.firestore {
 
       <!-- A. 客戶簽單列表 -->
       <div id="sg-tab-clients">
-        <div class="flex-between mb8">
-          <div class="flex gap8" style="flex-wrap:wrap">
-            <select id="sg-filter-status" onchange="renderSgClients()" style="width:120px">
-              <option value="">全部客戶</option>
-              <option value="unpaid">有未收款</option>
-              <option value="overdue">逾期客戶</option>
+        <div class="flex-between mb8" style="flex-wrap:wrap;gap:8px">
+          <div class="flex gap8" style="flex-wrap:wrap;align-items:center">
+            <select id="sg-filter-year" onchange="renderSgClients()" style="width:85px"></select>
+            <select id="sg-filter-month" onchange="renderSgClients()" style="width:75px">
+              <option value="0">全部月份</option>
+            </select>
+            <select id="sg-filter-status" onchange="renderSgClients()" style="width:110px">
+              <option value="">全部狀態</option>
+              <option value="unpaid">未收款</option>
+              <option value="overdue">逾期</option>
               <option value="paid">已結清</option>
             </select>
           </div>
@@ -1538,35 +1542,68 @@ function renderDailyPnl(){
   if(!el||!dateVal) return;
 
   const bills=(DB.daily||[]).filter(r=>r.date===dateVal);
+
+  // ── 營業收入 ──
   const revenue=bills.reduce((s,r)=>s+(+r.total||0),0);
   const cashRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const signRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
 
+  // ── 現金借支（按結帳方式分類）──
+  // 簽單結帳的借支 → 已計入簽單應收，不從當日現金扣
+  // 現金結帳的借支 → 從當日現金扣
+  const cashAdvance=bills.filter(r=>r.payType==='cash'||(r.payType==='mixed'&&(+r.cashAmt||0)>0))
+    .reduce((s,r)=>s+(+r.advance||0),0);
+  const signAdvance=bills.filter(r=>r.payType==='sign')
+    .reduce((s,r)=>s+(+r.advance||0),0);
+  const totalAdvance=bills.reduce((s,r)=>s+(+r.advance||0),0);
+
+  // ── 今日簽單收款（從簽單管理自動抓）──
+  const signCollectToday=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date===dateVal).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+
+  // ── 支出 ──
   const purchaseTotal=(DB.purchases||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0);
   const payrollTotal=(DB.dailyPayroll||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0);
   const expenseTotal=(DB.dailyExpenses||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0);
   const treatTotal=bills.reduce((s,r)=>s+(+r.treatTotal||0),0);
-  const advanceTotal=bills.reduce((s,r)=>s+(+r.advance||0),0);
+  const totalCashOut=purchaseTotal+payrollTotal+expenseTotal;
 
+  // ── 帳上現金計算 ──
+  // 現金收入 + 今日簽單還款 - 所有現金支出 - 現金借支
+  const actualCash=cashRev + signCollectToday - totalCashOut - cashAdvance;
+
+  // ── 損益計算 ──
   const totalExp=purchaseTotal+payrollTotal+expenseTotal;
   const netProfit=revenue-totalExp;
 
   el.innerHTML=`
     <div class="flex-between" style="padding:5px 0"><span>營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
-    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text2)"><span>└ 現金</span><span>$${fmt(cashRev)}</span></div>
-    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text2)"><span>└ 簽單</span><span>$${fmt(signRev)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text2)"><span>└ 現金營業</span><span>$${fmt(cashRev)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text2)"><span>└ 簽單營業</span><span>$${fmt(signRev)}</span></div>
+    ${signCollectToday>0?`<div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--green)"><span>└ 今日收到簽單還款</span><span class="text-green">＋$${fmt(signCollectToday)}</span></div>`:''}
     <hr class="divider" style="margin:8px 0">
-    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>進貨成本</span><span>－$${fmt(purchaseTotal)}</span></div>
-    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>人事支出</span><span>－$${fmt(payrollTotal)}</span></div>
-    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>其他支出</span><span>－$${fmt(expenseTotal)}</span></div>
-    ${treatTotal>0?`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--text3)"><span>招待酒水（成本參考）</span><span>$${fmt(treatTotal)}</span></div>`:''}
-    ${advanceTotal>0?`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--text3)"><span>現金借支（參考）</span><span>$${fmt(advanceTotal)}</span></div>`:''}
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>進貨付現</span><span>－$${fmt(purchaseTotal)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>人事薪資付現</span><span>－$${fmt(payrollTotal)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>其他支出付現</span><span>－$${fmt(expenseTotal)}</span></div>
+    ${cashAdvance>0?`<div class="flex-between" style="padding:5px 0;color:var(--red)"><span>現金借支（現金結帳）</span><span>－$${fmt(cashAdvance)}</span></div>`:''}
+    ${signAdvance>0?`<div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text3)"><span>└ 簽單借支（計入應收，不扣現金）</span><span>$${fmt(signAdvance)}</span></div>`:''}
+    ${treatTotal>0?`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--text3)"><span>招待酒水成本（參考）</span><span>$${fmt(treatTotal)}</span></div>`:''}
+    <hr class="divider" style="margin:8px 0">
+    <div class="flex-between" style="padding:8px 0;font-size:14px;font-weight:bold;background:var(--milk2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px">
+      <span>💵 帳上現金</span>
+      <span class="${actualCash>=0?'text-green':'text-red'}">${actualCash>=0?'＋':'－'} $${fmt(Math.abs(actualCash))}</span>
+    </div>
+    <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金收入</span><span>$${fmt(cashRev)}</span></div>
+    ${signCollectToday>0?`<div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 簽單還款收現</span><span class="text-green">$${fmt(signCollectToday)}</span></div>`:''}
+    <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金支出合計</span><span class="text-red">－$${fmt(totalCashOut+cashAdvance)}</span></div>
     <hr class="divider" style="margin:8px 0">
     <div class="flex-between" style="padding:8px 0;font-size:15px;font-weight:bold;border-top:2px solid var(--milk3)">
-      <span>當日損益</span>
+      <span>📊 當日損益</span>
       <span class="${netProfit>=0?'text-green':'text-red'}">${netProfit>=0?'＋':'－'} $${fmt(Math.abs(netProfit))}</span>
-    </div>`;
+    </div>
+    <div class="flex-between" style="font-size:11px;color:var(--text3);padding:2px 0"><span>（營業額 $${fmt(revenue)} － 支出 $${fmt(totalExp)}）</span></div>`;
 }
+
 
 function toggleSection(id){
   const el=document.getElementById(id);
@@ -1696,7 +1733,7 @@ function setDefaultDate(id){ const el=document.getElementById(id); if(el&&!el.va
 function initYearSelects(){
   const y=NOW.getFullYear(), years=[];
   for(let i=y-4;i<=y+1;i++) years.push(i);
-  ['ov-year','dl-year','pu-year','pu-sum-year','pr-year','mo-year','sg-year','rp-year','rp-yr-a','rp-yr-b'].forEach(id=>{
+  ['ov-year','dl-year','pu-year','pu-sum-year','pr-year','mo-year','sg-year','sg-filter-year','rp-year','rp-yr-a','rp-yr-b'].forEach(id=>{
     const el=document.getElementById(id); if(!el)return;
     el.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
   });
@@ -2239,14 +2276,26 @@ function renderDailyList(){
 
   // 當日統計
   const dayTotal=todayBills.reduce((s,r)=>s+(+r.total||0),0);
-  const dayCash=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
+  const dayCashRev=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const daySign=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
   const dayAdvance=todayBills.reduce((s,r)=>s+(+r.advance||0),0);
+  const dayCashAdvance=todayBills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  // Today sign collections
+  const daySignCollect=dateVal?(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date===dateVal).reduce((ss,p)=>ss+(+p.amount||0),0),0):0;
+  // Today cash expenses
+  const dayCashOut=dateVal?(
+    (DB.purchases||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyPayroll||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyExpenses||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)
+  ):0;
+  // Actual cash on hand
+  const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance;
 
   const dayStats=document.getElementById('daily-day-stats');
   if(dayStats) dayStats.innerHTML=`
     <div class="stat-card"><div class="stat-label">當日營業額</div><div class="stat-value">$${dayTotal.toLocaleString()}</div><div class="stat-sub">${todayBills.length} 張單</div></div>
-    <div class="stat-card"><div class="stat-label">帳上現金</div><div class="stat-value green">$${dayCash.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">帳上現金</div><div class="stat-value ${dayActualCash>=0?'green':'red'}">$${Math.abs(dayActualCash).toLocaleString()}</div><div class="stat-sub">${dayActualCash<0?'現金不足':'含收支計算'}</div></div>
     <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${daySign.toLocaleString()}</div></div>
     <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div></div>`;
 
@@ -2777,21 +2826,41 @@ function renderMonthly(){
   const netProfit=revenue-totalExp;
 
   // ── Render Stats ──
+  // ── 月簽單收款（從簽單管理自動抓）──
+  const moSignCollect=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>{const d=new Date(p.date);return d.getFullYear()===y&&d.getMonth()+1===m;})
+    .reduce((ss,p)=>ss+(+p.amount||0),0),0);
+
+  // ── 月現金借支（按結帳類型分）──
+  const bills2=(DB.daily||[]).filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const moCashAdvance=bills2.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  const moSignAdvance=bills2.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
+
+  // ── 月帳上現金 ──
+  const moActualCash=cashRev + moSignCollect - (purchaseTotal+payrollTotal+expenseTotal) - moCashAdvance;
+
   document.getElementById('mo-stats').innerHTML=`
     <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${fmt(revenue)}</div><div class="stat-sub">${workDays}天 ${billCount}張單</div></div>
     <div class="stat-card"><div class="stat-label">月總支出</div><div class="stat-value red">$${fmt(totalExp)}</div></div>
     <div class="stat-card"><div class="stat-label">月淨利</div><div class="stat-value ${netProfit>=0?'green':'red'}">${netProfit>=0?'+':''} $${fmt(netProfit)}</div></div>
-    <div class="stat-card"><div class="stat-label">帳上現金</div><div class="stat-value green">$${fmt(cashRev)}</div></div>
+    <div class="stat-card"><div class="stat-label">月帳上現金</div><div class="stat-value ${moActualCash>=0?'green':'red'}">$${fmt(moActualCash)}</div><div class="stat-sub">含簽單還款</div></div>
     <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${fmt(signRev)}</div></div>
     <div class="stat-card"><div class="stat-label">平均每日</div><div class="stat-value">$${fmt(avgDaily)}</div></div>`;
 
   // ── Revenue Detail ──
   document.getElementById('mo-revenue-detail').innerHTML=`
     <div class="flex-between" style="padding:5px 0"><span>總營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
-    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 帳上現金</span><span class="text-green">$${fmt(cashRev)}</span></div>
-    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 簽單金額</span><span style="color:var(--orange)">$${fmt(signRev)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 現金營業收入</span><span class="text-green">$${fmt(cashRev)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 簽單營業收入</span><span style="color:var(--orange)">$${fmt(signRev)}</span></div>
     ${discountTotal>0?`<div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--red)"><span>└ 沖銷/折扣合計</span><span>-$${fmt(discountTotal)}</span></div>`:''}
-    ${advanceTotal>0?`<div class="flex-between" style="padding:3px 0;font-size:12px;color:var(--text3)"><span>現金借支合計（參考）</span><span>$${fmt(advanceTotal)}</span></div>`:''}
+    <hr class="divider">
+    <div class="flex-between" style="padding:5px 0;font-weight:bold"><span>💵 月帳上現金</span><span class="${moActualCash>=0?'text-green':'text-red'}">$${fmt(moActualCash)}</span></div>
+    <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金營業</span><span>$${fmt(cashRev)}</span></div>
+    ${moSignCollect>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 本月收到簽單還款</span><span class="text-green">＋$${fmt(moSignCollect)}</span></div>`:''}
+    <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金支出（進貨+人事+其他）</span><span class="text-red">－$${fmt(purchaseTotal+payrollTotal+expenseTotal)}</span></div>
+    ${moCashAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金借支（現金單）</span><span class="text-red">－$${fmt(moCashAdvance)}</span></div>`:''}
+    ${moSignAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text3)"><span>└ 簽單借支（計入應收）</span><span>$${fmt(moSignAdvance)}</span></div>`:''}
+    <hr class="divider">
     <div class="flex-between" style="padding:5px 0"><span>工作天數</span><span>${workDays} 天</span></div>
     <div class="flex-between" style="padding:5px 0"><span>平均每日營業額</span><span>$${fmt(avgDaily)} / 天</span></div>`;
 
@@ -3042,8 +3111,30 @@ function renderSgOverview(){
 /* ── Client List ── */
 function renderSgClients(){
   renderSgOverview();
-  const bills = DB.signBills || [];
-  const filterStatus = document.getElementById('sg-filter-status')?.value||'';
+  // Init year/month selects if needed
+  const filterYearEl=document.getElementById('sg-filter-year');
+  if(filterYearEl&&!filterYearEl.options.length){
+    const y=NOW.getFullYear();
+    const years=[];for(let i=y-3;i<=y+1;i++)years.push(i);
+    filterYearEl.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
+  }
+  const filterMonthEl=document.getElementById('sg-filter-month');
+  if(filterMonthEl&&filterMonthEl.options.length<=1){
+    filterMonthEl.innerHTML='<option value="0">全部月份</option>'+
+      Array.from({length:12},(_,i)=>`<option value="${i+1}"${(i+1)===NOW.getMonth()+1?' selected':''}>${i+1}月</option>`).join('');
+  }
+
+  const filterYear=+(filterYearEl?.value||NOW.getFullYear());
+  const filterMonth=+(filterMonthEl?.value||0);
+  const filterStatus=document.getElementById('sg-filter-status')?.value||'';
+
+  const allBills = DB.signBills || [];
+
+  // Filter bills by month (0 = all)
+  const bills = filterMonth===0
+    ? allBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===filterYear;})
+    : allBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===filterYear&&d.getMonth()+1===filterMonth;});
+
   // Group by client
   const clients = {};
   bills.forEach(b=>{
@@ -3053,8 +3144,18 @@ function renderSgClients(){
   });
   const el=document.getElementById('sg-clients-list');
   if(!el) return;
+
+  // Period label
+  const periodLabel=filterMonth===0?`${filterYear}年 全年`:` ${filterYear}年${filterMonth}月`;
+  const filteredTotal=bills.reduce((s,b)=>s+(+b.amount||0),0);
+  const filteredUnpaid=bills.reduce((s,b)=>s+getSignBillRemaining(b),0);
+  el.innerHTML=`<div style="background:var(--milk2);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:12px" class="flex-between">
+    <span style="color:var(--text2)">${periodLabel} ｜ ${bills.length} 張單 ｜ 共 ${Object.keys(clients).length} 位客戶</span>
+    <span>簽單 <strong>$${fmt(filteredTotal)}</strong> ／ 未收 <strong class="text-red">$${fmt(filteredUnpaid)}</strong></span>
+  </div>`;
+
   if(!Object.keys(clients).length){
-    el.innerHTML='<div class="small text-center" style="padding:16px;color:var(--text3)">尚無簽單記錄</div>';
+    el.innerHTML+='<div class="small text-center" style="padding:16px;color:var(--text3)">此期間無簽單記錄</div>';
     return;
   }
   let html='';
