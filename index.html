@@ -2259,6 +2259,14 @@ function saveBill(){
 
 function renderDailyList(){
   const dateVal=document.getElementById('d-date').value;
+  // Auto-sync month selector to match selected date
+  if(dateVal){
+    const d=new Date(dateVal);
+    const dlYear=document.getElementById('dl-year');
+    const dlMonth=document.getElementById('dl-month');
+    if(dlYear) dlYear.value=d.getFullYear();
+    if(dlMonth) dlMonth.value=d.getMonth()+1;
+  }
   const year=+document.getElementById('dl-year').value;
   const month=+document.getElementById('dl-month').value;
 
