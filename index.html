@@ -140,6 +140,7 @@ tr:last-child td{border-bottom:none}
 <body>
 
 
+<!-- ═══════════════ FIREBASE 設定說明 ═══════════════ -->
 <div id="setup-guide" style="display:none;visibility:hidden;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.92);z-index:9999;padding:20px;overflow-y:auto">
   <div style="max-width:640px;margin:40px auto;background:#FDFAF7;border-radius:12px;padding:28px 32px">
     <div style="font-size:24px;margin-bottom:4px;text-align:center">👑 凱悅聚樂部</div>
@@ -150,4 +151,3460 @@ tr:last-child td{border-bottom:none}
     <div style="font-size:13px;color:#3A2E28;line-height:1.9">
       <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟一｜建立 Firebase 專案</div>
       <ol style="padding-left:18px;margin-bottom:16px">
-        <li>前往
+        <li>前往 <a href="https://console.firebase.google.com" target="_blank" style="color:#A8834E">console.firebase.google.com</a></li>
+        <li>點擊「新增專案」，輸入專案名稱（例：kaihat-club）</li>
+        <li>可關閉 Google Analytics，點擊「建立專案」</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟二｜啟用 Authentication</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>左側選單 → Authentication → 開始使用</li>
+        <li>Sign-in method → 啟用「電子郵件/密碼」</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟三｜建立 Firestore 資料庫</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>左側選單 → Firestore Database → 建立資料庫</li>
+        <li>選擇「以測試模式開始」→ 選擇位置（建議 asia-east1）</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟四｜取得設定並填入程式碼</div>
+      <ol style="padding-left:18px;margin-bottom:16px">
+        <li>專案設定（齒輪圖示）→ 你的應用程式 → 新增 Web 應用程式</li>
+        <li>複製 <code style="background:#EDE0D4;padding:1px 6px;border-radius:4px">firebaseConfig</code> 物件</li>
+        <li>用記事本開啟此 HTML 檔案</li>
+        <li>搜尋 <code style="background:#EDE0D4;padding:1px 6px;border-radius:4px">YOUR_API_KEY</code>，替換整個 FIREBASE_CONFIG 物件</li>
+      </ol>
+      <div style="font-weight:bold;margin-bottom:6px;color:#6B4F40">步驟五｜設定 Firestore 安全規則（正式使用）</div>
+      <pre style="background:#EDE0D4;padding:12px;border-radius:8px;font-size:11px;overflow-x:auto">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/data/{document} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+  }
+}</pre>
+    </div>
+    <button onclick="document.getElementById('setup-guide').style.display='none'"
+      style="width:100%;margin-top:20px;background:#6B4F40;color:#F5EFE6;border:none;padding:11px;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">
+      已完成設定，關閉說明
+    </button>
+  </div>
+</div>
+
+
+
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">👑</div>
+    <div class="login-title">凱悅聚樂部</div>
+    <div class="login-sub">KAIHAT CLUB · 營運管理系統 ❤️</div>
+    <div id="login-form">
+      <div class="login-form-group"><label>帳號</label><input type="text" id="l-user" placeholder="請輸入帳號" autocomplete="username"></div>
+      <div class="login-form-group"><label>密碼</label><input type="password" id="l-pass" placeholder="請輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="login-btn" onclick="doLogin()">登　入</button>
+    </div>
+    <div id="auth-msg" class="login-msg"></div>
+    <div style="margin-top:16px;font-size:11px;color:var(--text3)">帳號由管理員統一開通，如需登入請聯繫管理員</div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="main-app" class="app hidden">
+  <div class="header">
+    <div>
+      <div class="header-title">👑 凱悅聚樂部 ❤️</div>
+      <div class="header-sub">KAIHAT CLUB · 營運管理系統</div>
+    </div>
+    <div class="header-user">
+      <span id="cloud-status" class="cloud-indicator">雲端</span>
+      <span id="hdr-role" style="font-size:10px;padding:2px 8px;background:var(--gold2);color:var(--milk);border-radius:20px"></span>
+      <span id="hdr-username"></span>
+      <button class="logout-btn" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('overview')">📊 總覽</button>
+    <button class="nav-btn" onclick="showPage('daily')">💰 每日營業</button>
+    <button class="nav-btn" onclick="showPage('monthly')">📈 月度結算</button>
+    <button class="nav-btn" onclick="showPage('signing')">✍️ 簽單管理</button>
+    <button class="nav-btn" onclick="showPage('report')">📋 年度報告</button>
+    <button class="nav-btn" id="nav-log" onclick="showPage('log')" style="display:none">🔍 操作紀錄</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ───── 總覽 ───── -->
+    <div id="page-overview">
+      <div class="month-selector">
+        <select id="ov-year" onchange="renderOverview()"></select>
+        <select id="ov-month" onchange="renderOverview()">
+          <option value="0">全年度</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+      </div>
+      <div class="stats-grid" id="ov-stats"></div>
+
+      <div id="ov-alert-box"></div>
+
+      <div class="card" id="ov-target-card">
+        <div class="card-title">每月營業目標設定</div>
+        <div class="flex gap8" style="flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:140px"><label>本月目標營業額</label><input type="number" id="ov-target-input" placeholder="輸入目標金額"></div>
+          <button class="btn btn-sm btn-gold" onclick="saveTarget()">儲存目標</button>
+        </div>
+        <div id="ov-target-progress" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card" id="ov-chart-card" style="display:none">
+        <div class="card-title">營收趨勢圖（全年）</div>
+        <div style="position:relative;height:240px"><canvas id="ov-trend-chart"></canvas></div>
+      </div>
+
+      <div class="card" id="ov-pie-card" style="display:none">
+        <div class="card-title">收入結構（簽單 vs 現金）</div>
+        <div style="position:relative;height:220px;max-width:300px;margin:0 auto"><canvas id="ov-pie-chart"></canvas></div>
+      </div>
+
+      <div class="card" id="ov-monthly-grid" style="display:none">
+        <div class="card-title">全年各月概況（點擊月份查看明細）</div>
+        <div class="month-grid" id="ov-months"></div>
+      </div>
+      <div class="card" id="ov-daily-table" style="display:none">
+        <div class="card-title" id="ov-table-title">本月每日紀錄</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>日期</th><th>單號</th><th>總營業額</th><th>簽單</th><th>現金</th></tr></thead>
+          <tbody id="ov-daily-tbody"></tbody>
+          <tfoot><tr class="tfoot"><td colspan="2">合計</td><td id="ov-t-total"></td><td id="ov-t-sign"></td><td id="ov-t-cash"></td></tr></tfoot>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">月度損益摘要</div>
+        <div id="ov-pnl-list"></div>
+      </div>
+    </div>
+
+        <!-- ───── 每日營業 ───── -->
+    <div id="page-daily" class="hidden">
+
+      <!-- 日期選擇 + 當日統計 -->
+      <div class="card" id="daily-date-card">
+        <div class="flex-between mb8" style="flex-wrap:wrap;gap:8px">
+          <div class="flex gap8" style="flex-wrap:wrap;align-items:flex-end">
+            <div><label>選擇日期</label><input type="date" id="d-date" onchange="renderDailyList()" style="width:160px"></div>
+            <button class="btn btn-sm btn-outline" onclick="setDailyToday()">今天</button>
+          </div>
+          <div class="flex gap8" style="flex-wrap:wrap">
+            <select id="dl-year" onchange="renderDailyList()" style="width:90px"></select>
+            <select id="dl-month" onchange="renderDailyList()" style="width:75px"></select>
+          </div>
+        </div>
+        <!-- 當日統計 -->
+        <div id="daily-day-stats" class="stats-grid" style="margin-bottom:0"></div>
+      </div>
+
+      <!-- 月統計 -->
+      <div class="card">
+        <div class="card-title">📅 月度統計</div>
+        <div id="daily-month-stats" class="stats-grid" style="margin-bottom:0"></div>
+      </div>
+
+      <!-- 新增單據按鈕 -->
+      <div id="daily-add-btn-row" class="mb8">
+        <button class="btn btn-gold" onclick="openBillForm()" id="btn-open-bill">＋ 新增單據</button>
+      </div>
+
+      <!-- 新增單據表單 -->
+      <div id="bill-form-card" class="card hidden">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">📋 新增單據</div>
+          <button onclick="closeBillForm()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3)">✕</button>
+        </div>
+
+        <!-- 基本資料 -->
+        <div class="form-row">
+          <div class="form-group"><label>單號</label><input type="text" id="b-num" placeholder="例：K001"></div>
+          <div class="form-group"><label>包廂號</label><input type="text" id="b-room" placeholder="例：A01"></div>
+        </div>
+        <div class="form-group">
+          <label>客戶姓名（簽單時必填）</label>
+          <input type="text" id="b-client" placeholder="客戶姓名">
+        </div>
+
+        <!-- 包廂費 -->
+        <div class="form-group">
+          <label>包廂費</label>
+          <input type="number" id="b-room-fee" placeholder="0" oninput="calcBillTotal()">
+        </div>
+
+        <!-- 檯費明細 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">檯費明細</label>
+            <button class="btn btn-sm btn-outline" onclick="addTableFeeRow()">＋ 新增</button>
+          </div>
+          <div id="table-fee-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>檯費小計</span><span id="table-fee-subtotal" class="text-gold bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 酒水明細 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">酒水明細</label>
+            <button class="btn btn-sm btn-outline" onclick="addDrinkRow()">＋ 新增</button>
+          </div>
+          <div id="drink-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>酒水小計</span><span id="drink-subtotal" class="text-gold bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 小菜明細 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">小菜明細</label>
+            <button class="btn btn-sm btn-outline" onclick="addFoodRow()">＋ 新增</button>
+          </div>
+          <div id="food-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>小菜小計</span><span id="food-subtotal" class="text-gold bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 現金借支 -->
+        <div class="form-group">
+          <label>現金借支（另外計入，不影響營業額）</label>
+          <input type="number" id="b-advance" placeholder="0" oninput="calcBillTotal()">
+        </div>
+
+        <!-- 招待酒水 -->
+        <div style="margin-bottom:12px">
+          <div class="flex-between mb8">
+            <label style="margin-bottom:0">招待酒水（不計入營業額）</label>
+            <button class="btn btn-sm btn-outline" onclick="addTreatRow()">＋ 新增</button>
+          </div>
+          <div id="treat-rows"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
+            <span>招待酒水小計</span><span id="treat-subtotal" class="text-red bold">$0</span>
+          </div>
+        </div>
+
+        <!-- 沖銷/折扣 -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>沖銷金額（從營業額扣除）</label>
+            <input type="number" id="b-discount" placeholder="0" oninput="calcBillTotal()">
+          </div>
+          <div class="form-group">
+            <label>折扣說明</label>
+            <input type="text" id="b-discount-note" placeholder="例：VIP折扣、招待">
+          </div>
+        </div>
+
+        <!-- 小計 + 結帳方式 -->
+        <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+          <div class="flex-between mb8"><span style="font-size:13px">原始小計</span><span id="b-subtotal-orig" style="font-size:13px;color:var(--text2)">$0</span></div>
+          <div class="flex-between mb8" id="b-discount-row" style="display:none"><span style="font-size:13px;color:var(--red)">沖銷/折扣</span><span id="b-discount-show" style="font-size:13px;color:var(--red)">-$0</span></div>
+          <div class="flex-between mb8"><span style="font-size:13px;font-weight:bold">實收金額</span><span id="b-subtotal" style="font-size:18px;font-weight:bold;color:var(--brown3)">$0</span></div>
+          <div class="form-group"><label>結帳方式</label>
+            <select id="b-pay-type" onchange="toggleMixedPay()">
+              <option value="cash">全額現金</option>
+              <option value="sign">全額簽單</option>
+              <option value="mixed">現金 ＋ 簽單混合</option>
+            </select>
+          </div>
+          <div id="mixed-pay-section" style="display:none">
+            <div class="form-row" style="margin-bottom:0">
+              <div class="form-group" style="margin-bottom:0">
+                <label>現金金額</label>
+                <input type="number" id="b-cash-amt" placeholder="0" oninput="calcMixedPay()">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label>簽單金額</label>
+                <input type="number" id="b-sign-amt" placeholder="0" oninput="calcMixedPay()">
+              </div>
+            </div>
+            <div id="mixed-pay-check" style="font-size:11px;margin-top:6px;padding:4px 8px;border-radius:6px"></div>
+          </div>
+        </div>
+
+        <div class="form-group"><label>備註</label><input type="text" id="b-note" placeholder="選填"></div>
+        <button class="btn btn-gold" onclick="saveBill()">💾 儲存單據</button>
+      </div>
+
+      <!-- 當日單據列表 -->
+      <div class="card">
+        <div class="card-title" id="dl-list-title">單據列表</div>
+        <div id="dl-bills-list"></div>
+        <div id="dl-empty" class="small text-center" style="padding:16px;display:none">今日尚無單據</div>
+      </div>
+
+      <!-- 月度紀錄查詢 -->
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">月度單據紀錄</div>
+          <button class="btn btn-sm btn-outline" onclick="toggleSection('mo-table-body')" id="mo-table-toggle">收合 ▲</button>
+        </div>
+        <div id="mo-table-body">
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>日期</th><th>單號</th><th>包廂</th><th>客戶</th><th>營業額</th><th>結帳</th><th>借支</th><th></th></tr></thead>
+          <tbody id="dl-tbody"></tbody>
+          <tfoot>
+            <tr class="tfoot">
+              <td colspan="4">合計</td>
+              <td id="dl-t-total">$0</td>
+              <td id="dl-t-sign-cash"></td>
+              <td id="dl-t-advance">$0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table></div>
+      </div>
+
+
+      <!-- ══ 當日進貨 ══ -->
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">📦 當日進貨</div>
+          <button class="btn btn-sm btn-outline" onclick="toggleSection('daily-purchase-body')">展開/收合</button>
+        </div>
+        <div id="daily-purchase-body">
+          <div class="section-tabs" style="margin-bottom:8px">
+            <button class="section-tab active" onclick="setDailyPurchaseTab('A')">A 酒水</button>
+            <button class="section-tab" onclick="setDailyPurchaseTab('B')">B 雜支</button>
+            <button class="section-tab" onclick="setDailyPurchaseTab('C')">C 食材</button>
+          </div>
+          <div id="dp-form-title" style="font-size:11px;color:var(--text2);margin-bottom:6px">A 酒水</div>
+          <div id="dp-vendor-row" class="form-row" style="margin-bottom:6px">
+            <div><label style="font-size:10px">廠商</label>
+              <select id="dp-vendor" onchange="checkDpVendorOther()">
+                <option value="">選廠商</option>
+                <option value="__other__">＋ 新增</option>
+              </select>
+            </div>
+            <div id="dp-vendor-other-wrap" style="display:none">
+              <label style="font-size:10px">廠商名稱</label>
+              <input type="text" id="dp-vendor-other" placeholder="輸入廠商">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:6px">
+            <div><label style="font-size:10px">品項</label><input type="text" id="dp-item" placeholder="品項名稱"></div>
+            <div><label style="font-size:10px">金額</label><input type="number" id="dp-amount" placeholder="0"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:8px"><label style="font-size:10px">備註</label><input type="text" id="dp-note" placeholder="選填"></div>
+          <button class="btn btn-sm btn-gold" onclick="addDailyPurchase()">＋ 新增進貨</button>
+          <div id="dp-list" style="margin-top:10px"></div>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px;margin-top:6px">
+            <span>當日進貨小計（A+B+C）</span><span id="dp-total" class="text-red bold">$0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ 當日人事支出 ══ -->
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">👥 當日人事支出</div>
+          <button class="btn btn-sm btn-outline" onclick="toggleSection('daily-payroll-body')">展開/收合</button>
+        </div>
+        <div id="daily-payroll-body">
+          <div id="dp-payroll-list"></div>
+          <div class="form-row" style="margin-bottom:6px">
+            <div><label style="font-size:10px">類型</label>
+              <select id="dpr-type">
+                <option value="daily">日薪/陪侍</option>
+                <option value="table">訂台獎金</option>
+                <option value="intro">介紹費</option>
+                <option value="ticket">機票補助</option>
+                <option value="monthly">月薪</option>
+              </select>
+            </div>
+            <div><label style="font-size:10px">姓名</label><input type="text" id="dpr-name" placeholder="姓名"></div>
+          </div>
+          <div class="form-row" style="margin-bottom:6px">
+            <div><label style="font-size:10px">金額</label><input type="number" id="dpr-amount" placeholder="0"></div>
+            <div><label style="font-size:10px">備註</label><input type="text" id="dpr-note" placeholder="天數/桌數等"></div>
+          </div>
+          <button class="btn btn-sm btn-gold" onclick="addDailyPayroll()">＋ 新增人事支出</button>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px;margin-top:8px">
+            <span>當日人事合計</span><span id="dpr-total" class="text-red bold">$0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ 當日其他支出 ══ -->
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">💸 當日其他支出</div>
+          <button class="btn btn-sm btn-outline" onclick="toggleSection('daily-expense-body')">展開/收合</button>
+        </div>
+        <div id="daily-expense-body">
+          <div id="de-list"></div>
+          <div class="form-row" style="margin-bottom:6px">
+            <div><label style="font-size:10px">項目名稱</label><input type="text" id="de-name" placeholder="租金/水電/台電/其他"></div>
+            <div><label style="font-size:10px">金額</label><input type="number" id="de-amount" placeholder="0"></div>
+          </div>
+          <button class="btn btn-sm btn-gold" onclick="addDailyExpense()">＋ 新增支出</button>
+          <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px;margin-top:8px">
+            <span>當日其他支出合計</span><span id="de-total" class="text-red bold">$0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ 當日損益統計 ══ -->
+      <div class="card" id="daily-pnl-card">
+        <div class="card-title">📊 當日損益</div>
+        <div id="daily-pnl-detail"></div>
+      </div>
+
+
+    </div>
+
+
+    <!-- ───── 月度結算 ───── -->
+    <div id="page-monthly" class="hidden">
+      <div class="month-selector">
+        <select id="mo-year" onchange="renderMonthly()"></select>
+        <select id="mo-month" onchange="renderMonthly()"></select>
+      </div>
+
+      <!-- 月度總覽統計 -->
+      <div class="stats-grid" id="mo-stats"></div>
+
+      <!-- 月營業額明細 -->
+      <div class="card">
+        <div class="card-title">💰 月營業額明細</div>
+        <div id="mo-revenue-detail"></div>
+      </div>
+
+      <!-- 月進貨累計 -->
+      <div class="card">
+        <div class="card-title">📦 月進貨累計</div>
+        <div id="mo-purchase-detail"></div>
+      </div>
+
+      <!-- 月人事累計 -->
+      <div class="card">
+        <div class="card-title">👥 月人事支出累計</div>
+        <div id="mo-payroll-detail"></div>
+      </div>
+
+      <!-- 月其他支出累計 -->
+      <div class="card">
+        <div class="card-title">💸 月其他支出累計</div>
+        <div id="mo-expense-detail"></div>
+      </div>
+
+      <!-- 月招待累計 -->
+      <div class="card">
+        <div class="card-title">🎁 月招待酒水累計</div>
+        <div id="mo-treat-detail"></div>
+      </div>
+
+      <!-- 損益計算 -->
+      <div class="card">
+        <div class="card-title">📈 月度損益結算</div>
+        <div id="mo-pnl-detail"></div>
+      </div>
+
+      <!-- 佔比分析 -->
+      <div class="card">
+        <div class="card-title">🔍 佔比分析與警示</div>
+        <div id="mo-analysis"></div>
+      </div>
+
+      <button class="btn btn-gold" onclick="saveMonthly()" style="margin-bottom:20px">💾 儲存本月結算報告</button>
+    </div>
+
+
+        <!-- ───── 簽單管理 ───── -->
+    <div id="page-signing" class="hidden">
+
+      <!-- 總覽統計 -->
+      <div class="stats-grid" id="sg-overview-stats"></div>
+
+      <!-- 逾期警示 -->
+      <div id="sg-recovery-bar"></div>
+      <div id="sg-overdue-alert"></div>
+
+      <!-- 分頁切換 -->
+      <div class="section-tabs">
+        <button class="section-tab active" onclick="setSgTab('clients')">👤 客戶簽單</button>
+        <button class="section-tab" onclick="setSgTab('collect')">💵 收款核銷</button>
+        <button class="section-tab" onclick="setSgTab('history')">📋 收款記錄</button>
+        <button class="section-tab" onclick="setSgTab('settings')">⚙️ 設定</button>
+      </div>
+
+      <!-- A. 客戶簽單列表 -->
+      <div id="sg-tab-clients">
+        <div class="flex-between mb8" style="flex-wrap:wrap;gap:8px">
+          <div class="flex gap8" style="flex-wrap:wrap;align-items:center">
+            <select id="sg-filter-year" onchange="renderSgClients()" style="width:85px"></select>
+            <select id="sg-filter-month" onchange="renderSgClients()" style="width:75px">
+              <option value="0">全部月份</option>
+            </select>
+            <select id="sg-filter-status" onchange="renderSgClients()" style="width:110px">
+              <option value="">全部狀態</option>
+              <option value="unpaid">未收款</option>
+              <option value="overdue">逾期</option>
+              <option value="paid">已結清</option>
+            </select>
+          </div>
+          <button class="btn btn-sm btn-gold" onclick="openAddSignModal()">＋ 手動新增簽單</button>
+        </div>
+        <div id="sg-clients-list"></div>
+      </div>
+
+      <!-- B. 收款核銷 -->
+      <div id="sg-tab-collect" class="hidden">
+        <div class="card">
+          <div class="card-title">💵 收款核銷</div>
+          <div class="form-group">
+            <label>選擇客戶</label>
+            <select id="col-client" onchange="loadClientBills()">
+              <option value="">選擇客戶</option>
+            </select>
+          </div>
+          <div id="col-bills-section" class="hidden">
+            <div class="form-group">
+              <label>收款日期</label>
+              <input type="date" id="col-date">
+            </div>
+            <div style="margin-bottom:10px">
+              <label style="font-size:11px;color:var(--text2);margin-bottom:6px;display:block">選擇要核銷的單據（可多選）</label>
+              <div id="col-bills-list"></div>
+            </div>
+            <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
+              <div class="flex-between mb8">
+                <span style="font-size:12px">勾選單據未收總額</span>
+                <span id="col-selected-total" style="font-weight:bold">$0</span>
+              </div>
+              <div class="form-row" style="margin-bottom:6px">
+                <div class="form-group" style="margin-bottom:0">
+                  <label>實收金額</label>
+                  <input type="number" id="col-amount" placeholder="0" oninput="calcColDiscount()">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>折扣/去尾數</label>
+                  <input type="number" id="col-discount" placeholder="0" readonly style="background:var(--milk2)">
+                </div>
+              </div>
+              <div id="col-check" style="font-size:11px;padding:4px 8px;border-radius:6px;margin-top:4px"></div>
+            </div>
+            <div class="form-group">
+              <label>備註</label>
+              <input type="text" id="col-note" placeholder="選填">
+            </div>
+            <button class="btn btn-gold" onclick="saveCollection()">💾 儲存收款記錄</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- C. 收款記錄 -->
+      <div id="sg-tab-history" class="hidden">
+        <div class="card">
+          <div class="card-title">📋 收款記錄查詢</div>
+          <div class="month-selector">
+            <select id="sg-hist-year" onchange="renderSgHistory()"></select>
+            <select id="sg-hist-month" onchange="renderSgHistory()">
+              <option value="0">全部月份</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto"><table>
+            <thead><tr><th>收款日</th><th>客戶</th><th>實收</th><th>折扣</th><th>核銷單號</th><th>備註</th></tr></thead>
+            <tbody id="sg-hist-tbody"></tbody>
+            <tfoot><tr class="tfoot"><td colspan="2">合計</td><td id="sg-hist-total">$0</td><td id="sg-hist-discount">$0</td><td colspan="2"></td></tr></tfoot>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- D. 設定 -->
+      <div id="sg-tab-settings" class="hidden">
+        <div class="card">
+          <div class="card-title">⚙️ 簽單設定</div>
+          <div class="form-group">
+            <label>逾期天數設定（超過幾天未結清算逾期）</label>
+            <div class="flex gap8">
+              <input type="number" id="sg-overdue-days" value="30" style="width:100px">
+              <button class="btn btn-sm btn-gold" onclick="saveSgSettings()">儲存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 新增簽單 Modal -->
+    <div id="add-sign-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.7);z-index:9000;padding:20px;align-items:center;justify-content:center">
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;border:1px solid var(--milk3)">
+        <div class="flex-between mb8">
+          <div style="font-size:14px;font-weight:bold;color:var(--brown3)">＋ 手動新增簽單</div>
+          <button onclick="closeAddSignModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3)">✕</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>日期</label><input type="date" id="asg-date"></div>
+          <div class="form-group"><label>單號</label><input type="text" id="asg-num" placeholder="例：K001"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>客戶姓名</label><input type="text" id="asg-client" placeholder="客戶姓名"></div>
+          <div class="form-group"><label>包廂</label><input type="text" id="asg-room" placeholder="包廂號"></div>
+        </div>
+        <div class="form-group"><label>簽單金額</label><input type="number" id="asg-amount" placeholder="0"></div>
+        <div class="form-group"><label>備註</label><input type="text" id="asg-note" placeholder="選填"></div>
+        <div class="btn-row">
+          <button class="btn btn-gold" onclick="saveAddSign()">＋ 新增</button>
+          <button class="btn btn-outline" onclick="closeAddSignModal()">取消</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ───── 年度報告 ───── -->
+    <div id="page-report" class="hidden">
+      <div class="section-tabs">
+        <button class="section-tab active" onclick="setReportTab('monthly')">月度比較</button>
+        <button class="section-tab" onclick="setReportTab('yearly')">年度比較</button>
+      </div>
+      <div id="rp-monthly">
+        <div class="card">
+          <div class="card-title">月度營收報告</div>
+          <div class="mb8"><select id="rp-year" onchange="renderReport()"></select></div>
+          <div class="month-grid" id="rp-month-cards" style="margin-bottom:12px"></div>
+          <table>
+            <thead><tr><th>月份</th><th>營業額</th><th>支出</th><th>淨利</th><th>vs 上月</th></tr></thead>
+            <tbody id="rp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="rp-yearly" class="hidden">
+        <div class="card">
+          <div class="card-title">年度比較</div>
+          <div class="flex gap8 mb8" style="flex-wrap:wrap">
+            <div><label style="font-size:10px">年份 A</label><select id="rp-yr-a" onchange="renderYearlyReport()"></select></div>
+            <div><label style="font-size:10px">年份 B</label><select id="rp-yr-b" onchange="renderYearlyReport()"></select></div>
+          </div>
+          <div id="rp-yearly-content"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 報表匯出 / 資料備份</div>
+        <div class="flex gap8" style="flex-wrap:wrap">
+          <button class="btn btn-sm btn-gold" onclick="exportExcel()">📊 匯出 Excel 報表</button>
+          <button class="btn btn-sm btn-outline" onclick="exportBackup()">💾 下載完整備份</button>
+          <button class="btn btn-sm btn-outline" id="btn-restore" onclick="document.getElementById('restore-file').click()">📥 還原備份</button>
+          <input type="file" id="restore-file" accept=".json" style="display:none" onchange="importBackup(event)">
+        </div>
+        <div class="small" style="margin-top:8px">Excel 匯出當前選擇年份的營業、進貨、簽單明細；備份檔含全部資料可跨裝置還原</div>
+      </div>
+    </div>
+
+      <!-- ───── 操作紀錄 ───── -->
+    <div id="page-log" class="hidden">
+      <div class="card">
+        <div class="card-title">操作紀錄</div>
+        <div class="month-selector">
+          <select id="log-filter">
+            <option value="">全部動作</option>
+            <option value="新增">新增</option>
+            <option value="刪除">刪除</option>
+            <option value="修改">修改</option>
+            <option value="登入">登入</option>
+            <option value="儲存">儲存</option>
+          </select>
+          <select id="log-user-filter">
+            <option value="">全部帳號</option>
+          </select>
+          <button class="btn btn-sm btn-danger" onclick="clearLogs()">清除紀錄</button>
+        </div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>時間</th><th>帳號</th><th>角色</th><th>動作</th><th>說明</th></tr></thead>
+          <tbody id="log-tbody"></tbody>
+        </table></div>
+        <div id="log-empty" class="small text-center" style="padding:16px;display:none">尚無操作紀錄</div>
+      </div>
+    </div>
+
+
+<!-- ═══════════════ EDIT MODAL ═══════════════ -->
+<div id="edit-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.7);z-index:9000;padding:20px;overflow-y:auto;align-items:center;justify-content:center">
+  <div style="background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;border:1px solid var(--milk3)">
+    <div class="flex-between mb8">
+      <div id="edit-modal-title" style="font-size:14px;font-weight:bold;color:var(--brown3)">編輯紀錄</div>
+      <button onclick="closeEditModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3)">✕</button>
+    </div>
+    <div id="edit-modal-body"></div>
+    <div class="btn-row mt8">
+      <button class="btn btn-gold" onclick="saveEdit()">💾 儲存</button>
+      <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main-app -->
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+/* ════════════════════════════════════════
+   凱悅聚樂部 營運管理系統  v3.0  Firebase版
+   使用前請填入下方 Firebase 設定
+════════════════════════════════════════ */
+
+/* ══ ① 填入你的 Firebase 設定 ══════════
+   至 https://console.firebase.google.com
+   建立專案 → 新增 Web App → 複製設定貼入
+══════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCNA884sM69VbDuFdz2xltiuqBTIG7QWaw",
+  authDomain:        "regency-club-774a0.firebaseapp.com",
+  projectId:         "regency-club-774a0",
+  storageBucket:     "regency-club-774a0.firebasestorage.app",
+  messagingSenderId: "618772685441",
+  appId:             "1:618772685441:web:f9e1eabffe7557c3dc6380"
+};
+
+/* ══ ② Firebase SDK（從 CDN 載入）══════ */
+import { initializeApp }                        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword,
+         signInWithEmailAndPassword, signOut,
+         onAuthStateChanged }                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc,
+         getDoc, onSnapshot }                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseApp = initializeApp(FIREBASE_CONFIG);
+const auth        = getAuth(firebaseApp);
+const db          = getFirestore(firebaseApp);
+
+/* ════════════════════════════════════════
+   狀態
+════════════════════════════════════════ */
+const NOW = new Date();
+let DB  = {};
+let currentUser   = null;   // Firebase User 物件
+let saveTimer     = null;
+let unsubSnapshot = null;   // Firestore 即時監聽 unsubscribe fn
+
+/* ════════════════════════════════════════
+   雲端 I/O（Firestore）
+   文件路徑：users/{uid}/data/main
+════════════════════════════════════════ */
+function dbRef(){ return doc(db, 'shared', 'kaihat', 'data', 'main'); }
+
+function setCloudStatus(s){
+  const el = document.getElementById('cloud-status');
+  if(!el) return;
+  el.className = 'cloud-indicator ' + s;
+  el.textContent = s==='saved'?'☁ 已同步':s==='saving'?'↑ 同步中':'✕ 同步失敗';
+}
+
+async function saveDB(){
+  if(!currentUser || !canWrite()) return;
+  setCloudStatus('saving');
+  try{
+    await setDoc(dbRef(), { payload: JSON.stringify(DB), updatedAt: Date.now() });
+    setCloudStatus('saved');
+  }catch(e){
+    console.error('Firestore save error', e);
+    setCloudStatus('error');
+  }
+}
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDB, 1000); }
+
+async function loadDB(){
+  if(!currentUser) return;
+  try{
+    const snap = await getDoc(dbRef());
+    DB = snap.exists() ? JSON.parse(snap.data().payload) : {};
+  }catch(e){ DB = {}; }
+  ensureSchema();
+}
+
+/* 即時監聽（多裝置同步） */
+function startRealtimeSync(){
+  if(unsubSnapshot) unsubSnapshot();
+  unsubSnapshot = onSnapshot(dbRef(), snap => {
+    if(!snap.exists()) return;
+    try{
+      const remote = JSON.parse(snap.data().payload);
+      DB = remote;
+      ensureSchema();
+      // 只在已在畫面上才刷新
+      const activePage = document.querySelector('[id^="page-"]:not(.hidden)');
+      if(activePage) refreshCurrentPage(activePage.id.replace('page-',''));
+    }catch(e){}
+  });
+}
+
+function stopRealtimeSync(){
+  if(unsubSnapshot){ unsubSnapshot(); unsubSnapshot=null; }
+}
+
+function ensureSchema(){
+  if(!DB.daily)     DB.daily = [];
+  if(!DB.purchases) DB.purchases = [];
+  if(!DB.payroll)   DB.payroll = {};
+  if(!DB.monthly)   DB.monthly = {};
+  if(!DB.signing)   DB.signing = [];
+  if(!DB.vendors)   DB.vendors = {
+    A:['統一','金車','保樂力加'],
+    B:['文具行','清潔用品'],
+    C:['農產市場','魚市場']
+  };
+  if(!DB.logs) DB.logs = [];
+  if(!DB.targets) DB.targets = {};
+  if(!DB.dailyPayroll) DB.dailyPayroll = [];
+  if(!DB.dailyExpenses) DB.dailyExpenses = [];
+  if(!DB.signBills) DB.signBills = [];
+  if(!DB.sgSettings) DB.sgSettings = { overdueDays: 30 };
+  if(!DB.signBillDeleted) DB.signBillDeleted = [];
+}
+
+/* ════════════════════════════════════════
+   🔍 操作紀錄系統
+════════════════════════════════════════ */
+function writeLog(action, detail){
+  if(!currentUser) return;
+  const username = currentUser.email.replace('@kaihat.app','');
+  const entry = {
+    id: Date.now(),
+    time: new Date().toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    user: username,
+    role: ROLE_LABELS[currentRole] || currentRole,
+    action,
+    detail
+  };
+  if(!DB.logs) DB.logs = [];
+  DB.logs.unshift(entry); // newest first
+  if(DB.logs.length > 500) DB.logs = DB.logs.slice(0, 500); // keep last 500
+}
+
+function renderLog(){
+  if(!DB.logs || !DB.logs.length){
+    document.getElementById('log-empty').style.display='';
+    document.getElementById('log-tbody').innerHTML='';
+    return;
+  }
+  document.getElementById('log-empty').style.display='none';
+  const filterAction = document.getElementById('log-filter').value;
+  const filterUser   = document.getElementById('log-user-filter').value;
+
+  // populate user filter
+  const users = [...new Set(DB.logs.map(l=>l.user))];
+  const userSel = document.getElementById('log-user-filter');
+  const curVal = userSel.value;
+  userSel.innerHTML = '<option value="">全部帳號</option>' + users.map(u=>`<option value="${u}" ${u===curVal?'selected':''}>${u}</option>`).join('');
+
+  let logs = DB.logs;
+  if(filterAction) logs = logs.filter(l=>l.action===filterAction);
+  if(filterUser)   logs = logs.filter(l=>l.user===filterUser);
+
+  const actionColors = {
+    '新增':'badge-green','刪除':'badge-red','修改':'badge-orange',
+    '登入':'badge-gold','儲存':'badge-gold'
+  };
+
+  document.getElementById('log-tbody').innerHTML = logs.map(l=>`
+    <tr>
+      <td style="white-space:nowrap;font-size:11px">${l.time}</td>
+      <td><strong>${l.user}</strong></td>
+      <td style="font-size:10px">${l.role||''}</td>
+      <td><span class="badge ${actionColors[l.action]||'badge-gold'}">${l.action}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${l.detail}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="text-center small" style="padding:12px">無符合紀錄</td></tr>';
+}
+
+function clearLogs(){
+  if(!confirm('確認清除所有操作紀錄？此動作無法復原')) return;
+  writeLog('修改','清除所有操作紀錄');
+  DB.logs = [];
+  writeLog('修改','操作紀錄已清除');
+  scheduleSave();
+  renderLog();
+}
+
+/* ════════════════════════════════════════
+   AUTH（Firebase Authentication）
+   登入方式：Email/Password
+   帳號格式：系統自動在帳號後加 @kaihat.app
+════════════════════════════════════════ */
+function toEmail(user){ return user.trim().toLowerCase() + '@kaihat.app'; }
+
+/* ════════════════════════════════════════
+   🔐 權限系統
+   ROLES: admin / accounting / manager / shareholder
+   修改帳號對應角色請編輯 ROLE_MAP
+════════════════════════════════════════ */
+const ROLE_MAP = {
+  'admin':        'admin',        // 👑 管理員 - 全部功能
+  'accounting':   'accounting',   // 📊 會計   - 可新增修改所有資料
+  'manager':      'manager',      // 🏢 經理   - 可查看 + 新增每日營業
+  'shareholder1': 'shareholder',  // 👁 股東1  - 只能看報表總覽
+  'shareholder2': 'shareholder',  // 👁 股東2  - 只能看報表總覽
+};
+
+const ROLE_LABELS = {
+  admin:       '👑 管理員',
+  accounting:  '📊 會計',
+  manager:     '🏢 經理',
+  shareholder: '👁 股東',
+};
+
+// 權限定義
+const PERMISSIONS = {
+  admin:       { write:true,  dailyAdd:true,  purchaseAdd:true,  payrollEdit:true,  monthlyEdit:true,  signingAdd:true,  navAll:true  },
+  accounting:  { write:true,  dailyAdd:true,  purchaseAdd:true,  payrollEdit:true,  monthlyEdit:true,  signingAdd:true,  navAll:true  },
+  manager:     { write:false, dailyAdd:true,  purchaseAdd:false, payrollEdit:false, monthlyEdit:false, signingAdd:false, navAll:true  },
+  shareholder: { write:false, dailyAdd:false, purchaseAdd:false, payrollEdit:false, monthlyEdit:false, signingAdd:false, navAll:false },
+};
+
+let currentRole = 'shareholder';
+
+function getUserRole(email){
+  const username = email.replace('@kaihat.app','').toLowerCase();
+  return ROLE_MAP[username] || 'shareholder';
+}
+
+function getPerms(){ return PERMISSIONS[currentRole] || PERMISSIONS.shareholder; }
+function canWrite(){ return getPerms().write; }
+
+function applyRoleUI(){
+  const p = getPerms();
+  const navBtns = document.querySelectorAll('.nav-btn');
+  if(!p.navAll){
+    // shareholders: only overview(0) and report(4)
+    [1,2,3].forEach(i=>{ if(navBtns[i]) navBtns[i].style.display='none'; });
+  } else {
+    navBtns.forEach(b=>b.style.display='');
+  }
+  // Log nav - admin only
+  const logNav = document.getElementById('nav-log');
+  if(logNav) logNav.style.display = currentRole==='admin' ? '' : 'none';
+  // role badge
+  const roleEl = document.getElementById('hdr-role');
+  if(roleEl) roleEl.textContent = ROLE_LABELS[currentRole]||'';
+}
+
+function lockForm(selector){
+  document.querySelectorAll(selector).forEach(el=>{
+    if(el.tagName==='BUTTON') el.disabled=true, el.style.opacity='0.3', el.style.cursor='not-allowed';
+    if(['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) el.readOnly=true, el.style.background='var(--milk2)';
+  });
+}
+
+function switchAuthTab(t){
+  document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('active',['login','register'][i]===t));
+  document.getElementById('login-form').classList.toggle('hidden', t!=='login');
+  document.getElementById('register-form').classList.toggle('hidden', t!=='register');
+  document.getElementById('auth-msg').textContent='';
+}
+
+async function doRegister(){
+  const user  = document.getElementById('r-user').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  const msg   = document.getElementById('auth-msg');
+  if(!user||!pass){ msg.className='login-msg err'; msg.textContent='請填寫帳號和密碼'; return; }
+  if(pass!==pass2){ msg.className='login-msg err'; msg.textContent='兩次密碼不一致'; return; }
+  if(pass.length<6){ msg.className='login-msg err'; msg.textContent='密碼至少需要 6 個字元'; return; }
+  if(!/^[\w\u4e00-\u9fa5]{2,20}$/.test(user)){ msg.className='login-msg err'; msg.textContent='帳號限 2-20 字元（中英數字底線）'; return; }
+  msg.className='login-msg'; msg.textContent='建立中...';
+  try{
+    await createUserWithEmailAndPassword(auth, toEmail(user), pass);
+    msg.className='login-msg ok'; msg.textContent='✅ 帳號建立成功！';
+  }catch(e){
+    const errMap = {
+      'auth/email-already-in-use':'此帳號已存在',
+      'auth/weak-password':'密碼強度不足（至少6碼）',
+      'auth/invalid-email':'帳號格式不符'
+    };
+    msg.className='login-msg err';
+    msg.textContent = errMap[e.code] || ('建立失敗：'+e.message);
+  }
+}
+
+async function doLogin(){
+  const user = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const msg  = document.getElementById('auth-msg');
+  if(!user||!pass){ msg.className='login-msg err'; msg.textContent='請填寫帳號和密碼'; return; }
+  msg.className='login-msg'; msg.textContent='登入中...';
+  try{
+    await signInWithEmailAndPassword(auth, toEmail(user), pass);
+  }catch(e){
+    const errMap = {
+      'auth/user-not-found':'帳號不存在，請聯繫管理員',
+      'auth/wrong-password':'密碼錯誤',
+      'auth/invalid-credential':'帳號或密碼錯誤',
+      'auth/too-many-requests':'登入失敗次數過多，請稍後再試'
+    };
+    msg.className='login-msg err';
+    msg.textContent = errMap[e.code] || ('登入失敗：'+e.message);
+  }
+}
+
+async function doLogout(){
+  stopRealtimeSync();
+  await signOut(auth);
+  currentUser = null;
+  DB = {};
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('l-user').value='';
+  document.getElementById('l-pass').value='';
+  document.getElementById('auth-msg').textContent='';
+}
+
+
+/* ════════════════════════════════════════
+   📊 Excel 匯出 / 💾 備份 / 📥 還原
+════════════════════════════════════════ */
+function exportExcel(){
+  if(typeof XLSX==='undefined'){ alert('匯出元件載入中，請稍候再試'); return; }
+  const year=+document.getElementById('rp-year').value || new Date().getFullYear();
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: 每日營業
+  const dailyRows=DB.daily.filter(r=>new Date(r.date).getFullYear()===year)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>({日期:r.date,單號:r.num||'',總營業額:+r.total||0,簽單:+r.sign||0,現金:+r.cash||0,備註:r.note||''}));
+  if(dailyRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dailyRows), '每日營業');
+
+  // Sheet 2: 進貨
+  const catName={A:'A酒水',B:'B雜支',C:'C食材'};
+  const puRows=DB.purchases.filter(r=>new Date(r.date).getFullYear()===year)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>({日期:r.date,類別:catName[r.category]||r.category,廠商:r.vendor,品項:r.item||'',金額:+r.amount||0,備註:r.note||''}));
+  if(puRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(puRows), '進貨紀錄');
+
+  // Sheet 3: 簽單
+  const sgRows=(DB.signBills||[]).filter(r=>r.date&&r.date.startsWith(String(year)))
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(r=>({
+      日期:r.date, 客戶:r.client||'', 單號:r.num||'',
+      簽單金額:+r.signAmt||+r.amount||0, 借支:+r.advanceAmt||0,
+      總應收:+r.amount||0,
+      已收:(r.payments||[]).reduce((s,p)=>s+(+p.amount||0),0),
+      折扣:(r.payments||[]).reduce((s,p)=>s+(+p.discount||0),0),
+      未收:Math.max(0,(+r.amount||0)-(r.payments||[]).reduce((s,p)=>s+(+p.amount||0)+(+p.discount||0),0)),
+      備註:r.note||''
+    }));
+  if(sgRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sgRows), '簽單紀錄');
+
+  // Sheet 4: 月度結算
+  const moRows=[];
+  for(let m=1;m<=12;m++){
+    const k=ym(year,m); const mo=DB.monthly[k];
+    if(mo) moRows.push({月份:`${year}年${m}月`,營業額:+mo.revenue||0,總支出:+mo.totalExp||0,實賺:+mo.netProfit||0});
+  }
+  if(moRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(moRows), '月度結算');
+
+  if(wb.SheetNames.length===0){ alert(`${year}年 尚無資料可匯出`); return; }
+  XLSX.writeFile(wb, `凱悅聚樂部_${year}年營運報表.xlsx`);
+  writeLog('儲存', `匯出 ${year}年 Excel 報表`);
+}
+
+function exportBackup(){
+  const data=JSON.stringify(DB,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,10);
+  a.href=url; a.download=`凱悅聚樂部_備份_${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  writeLog('儲存', '下載完整資料備份');
+}
+
+function importBackup(event){
+  if(!getPerms().write){ alert('您的權限無法還原資料'); event.target.value=''; return; }
+  const file=event.target.files[0];
+  if(!file) return;
+  if(!confirm('⚠️ 還原備份將覆蓋目前所有雲端資料，確定繼續？')){ event.target.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.daily && !data.purchases){ alert('備份檔格式不正確'); return; }
+      DB=data;
+      ensureSchema();
+      writeLog('修改', '還原資料備份（覆蓋全部資料）');
+      await saveDB();
+      alert('✅ 備份還原成功！');
+      showPage('overview');
+    }catch(err){
+      alert('還原失敗：檔案格式錯誤');
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+/* ════════════════════════════════════════
+   ✏️ 編輯功能（管理員 + 會計）
+════════════════════════════════════════ */
+let editType=null, editId=null;
+
+function openEditModal(){ 
+  const m=document.getElementById('edit-modal');
+  m.style.display='flex';
+}
+function closeEditModal(){
+  document.getElementById('edit-modal').style.display='none';
+  editType=null; editId=null;
+}
+
+function editDaily(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const r=DB.daily.find(x=>x.id===id); if(!r) return;
+  editType='daily'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯每日營業紀錄';
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="ed-date" value="${r.date}"></div>
+    <div class="form-group"><label>單號</label><input type="text" id="ed-num" value="${r.num||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>總營業額</label><input type="number" id="ed-total" value="${r.total||0}" oninput="document.getElementById('ed-cash').value=(+this.value||0)-(+document.getElementById('ed-sign').value||0)"></div>
+    <div class="form-group"><label>簽單金額</label><input type="number" id="ed-sign" value="${r.sign||0}" oninput="document.getElementById('ed-cash').value=(+document.getElementById('ed-total').value||0)-(+this.value||0)"></div></div>
+    <div class="form-group"><label>現金金額（自動）</label><input type="number" id="ed-cash" value="${r.cash||0}" readonly style="background:var(--milk2)"></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${r.note||''}"></div>`;
+  openEditModal();
+}
+
+function editPurchase(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const r=DB.purchases.find(x=>x.id===id); if(!r) return;
+  editType='purchase'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯進貨紀錄';
+  const vendors=(DB.vendors[r.category]||[]);
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="ed-date" value="${r.date}"></div>
+    <div class="form-group"><label>廠商</label><input type="text" id="ed-vendor" value="${r.vendor||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>品項</label><input type="text" id="ed-item" value="${r.item||''}"></div>
+    <div class="form-group"><label>金額</label><input type="number" id="ed-amount" value="${r.amount||0}"></div></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${r.note||''}"></div>`;
+  openEditModal();
+}
+
+function editSigning(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const r=(DB.signBills||[]).find(x=>x.id===id); if(!r) return;
+  editType='signing'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯簽單紀錄';
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="ed-date" value="${r.date}"></div>
+    <div class="form-group"><label>客戶名稱</label><input type="text" id="ed-client" value="${r.client||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>簽單金額</label><input type="number" id="ed-amount" value="${r.amount||0}"></div>
+    <div class="form-group"><label>已收金額</label><input type="number" id="ed-collected" value="${r.collected||0}"></div></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${r.note||''}"></div>`;
+  openEditModal();
+}
+
+function saveEdit(){
+  if(!editType||!editId) return;
+  if(editType==='daily'){
+    const r=DB.daily.find(x=>x.id===editId); if(!r) return;
+    const total=+document.getElementById('ed-total').value||0;
+    const sign=+document.getElementById('ed-sign').value||0;
+    r.date=document.getElementById('ed-date').value;
+    r.num=document.getElementById('ed-num').value;
+    r.total=total; r.sign=sign; r.cash=total-sign;
+    r.note=document.getElementById('ed-note').value;
+    writeLog('修改',`每日營業 ${r.date} 總額 $${total.toLocaleString()}`);
+    scheduleSave(); closeEditModal(); renderDailyList();
+  } else if(editType==='purchase'){
+    const r=DB.purchases.find(x=>x.id===editId); if(!r) return;
+    r.date=document.getElementById('ed-date').value;
+    r.vendor=document.getElementById('ed-vendor').value;
+    r.item=document.getElementById('ed-item').value;
+    r.amount=+document.getElementById('ed-amount').value||0;
+    r.note=document.getElementById('ed-note').value;
+    writeLog('修改',`進貨 ${r.category}類 ${r.vendor} $${r.amount.toLocaleString()}`);
+    scheduleSave(); closeEditModal(); renderPurchase();
+  } else if(editType==='signing'){
+    const r=(DB.signBills||[]).find(x=>x.id===editId); if(!r) return;
+    r.date=document.getElementById('ed-date').value;
+    r.client=document.getElementById('ed-client').value;
+    r.amount=+document.getElementById('ed-amount').value||0;
+    r.note=document.getElementById('ed-note').value;
+    writeLog('修改',`簽單 ${r.client} $${r.amount.toLocaleString()}`);
+    scheduleSave(); closeEditModal(); renderSigning();
+  } else if(editType==='bill'){
+    const b=DB.daily.find(x=>x.id===editId); if(!b) return;
+    b.num=document.getElementById('ed-num').value;
+    b.room=document.getElementById('ed-room').value;
+    b.roomFee=+document.getElementById('ed-room-fee').value||0;
+    b.payType=document.getElementById('ed-pay-type').value;
+    b.client=document.getElementById('ed-client')?.value||b.client||'';
+    b.advance=+document.getElementById('ed-advance').value||0;
+    b.discount=+document.getElementById('ed-discount').value||0;
+    b.discountNote=document.getElementById('ed-discount-note').value;
+    b.note=document.getElementById('ed-note').value;
+    b.roomFee=+document.getElementById('ed-room-fee').value||b.roomFee||0;
+    // Handle mixed payment
+    if(b.payType==='mixed'){
+      b.cashAmt=+document.getElementById('ed-cash-amt')?.value||b.cashAmt||0;
+      b.signAmt=+document.getElementById('ed-sign-amt')?.value||b.signAmt||0;
+    } else if(b.payType==='cash'){
+      b.cashAmt=0; b.signAmt=0;
+    } else {
+      b.cashAmt=0; b.signAmt=0;
+    }
+    // recalc total
+    const tfTotal=b.tableFees?b.tableFees.reduce((s,r)=>s+r.fee,0):0;
+    const dTotal=b.drinks?b.drinks.reduce((s,r)=>s+r.amount,0):0;
+    const fTotal=b.foods?b.foods.reduce((s,r)=>s+r.amount,0):0;
+    b.totalOrig=b.roomFee+tfTotal+dTotal+fTotal;
+    b.total=Math.max(0, b.totalOrig-b.discount);
+    // sync sign bill if needed
+    if(b.payType==='sign'||b.payType==='mixed') syncSignBillsFromDaily();
+    writeLog('修改',`單據 ${b.num||'無號'} ${b.client||''} ${b.room||''} 結帳:${b.payType}`);
+    scheduleSave(); closeEditModal(); renderDailyList();
+  }
+}
+
+/* ════════════════════════════════════════
+   📦 當日進貨
+════════════════════════════════════════ */
+let dpTab='A';
+
+function setDailyPurchaseTab(t){
+  dpTab=t;
+  document.querySelectorAll('#daily-purchase-body .section-tab').forEach((b,i)=>b.classList.toggle('active',['A','B','C'][i]===t));
+  document.getElementById('dp-form-title').textContent={A:'A 酒水',B:'B 雜支',C:'C 食材'}[t];
+  renderDpVendors();
+  renderDpList();
+}
+
+function renderDpVendors(){
+  const sel=document.getElementById('dp-vendor');
+  if(!sel) return;
+  sel.innerHTML='<option value="">選廠商</option>'+(DB.vendors[dpTab]||[]).map(v=>`<option value="${v}">${v}</option>`).join('')+'<option value="__other__">＋ 新增廠商</option>';
+}
+
+function checkDpVendorOther(){
+  const v=document.getElementById('dp-vendor').value;
+  document.getElementById('dp-vendor-other-wrap').style.display=v==='__other__'?'':'none';
+}
+
+function addDailyPurchase(){
+  if(!getPerms().write){ alert('您的權限無法新增進貨'); return; }
+  const dateVal=document.getElementById('d-date').value;
+  if(!dateVal){ alert('請先選擇日期'); return; }
+  let vendor=document.getElementById('dp-vendor').value;
+  if(vendor==='__other__'){
+    vendor=document.getElementById('dp-vendor-other').value.trim();
+    if(!vendor){ alert('請輸入廠商名稱'); return; }
+    if(!DB.vendors[dpTab].includes(vendor)) DB.vendors[dpTab].push(vendor);
+    document.getElementById('dp-vendor-other').value='';
+    document.getElementById('dp-vendor-other-wrap').style.display='none';
+    renderDpVendors();
+  }
+  const item=document.getElementById('dp-item').value.trim();
+  const amount=+document.getElementById('dp-amount').value||0;
+  const note=document.getElementById('dp-note').value;
+  if(!vendor||amount<=0){ alert('請填廠商和金額'); return; }
+  if(!DB.purchases) DB.purchases=[];
+  DB.purchases.push({id:Date.now(),date:dateVal,category:dpTab,vendor,item,amount,note});
+  writeLog('新增',`進貨 ${dpTab}類 ${vendor} ${item} $${amount.toLocaleString()}`);
+  scheduleSave();
+  document.getElementById('dp-item').value='';
+  document.getElementById('dp-amount').value='';
+  document.getElementById('dp-note').value='';
+  renderDpList();
+  renderDailyPnl();
+}
+
+function renderDpList(){
+  const dateVal=document.getElementById('d-date').value;
+  if(!dateVal||!document.getElementById('dp-list')) return;
+  const rows=(DB.purchases||[]).filter(r=>r.date===dateVal&&r.category===dpTab);
+  // All categories for total
+  const allToday=(DB.purchases||[]).filter(r=>r.date===dateVal);
+  const total=allToday.reduce((s,r)=>s+(+r.amount||0),0);
+  document.getElementById('dp-total').textContent='$'+total.toLocaleString();
+  document.getElementById('dp-list').innerHTML=rows.map(r=>`
+    <div class="list-item" style="padding:6px 10px">
+      <div style="font-size:12px"><span style="color:var(--text2)">${r.vendor}</span> ${r.item||''}</div>
+      <div class="flex gap8">
+        <span style="font-weight:bold">$${(+r.amount).toLocaleString()}</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteDailyPurchase(${r.id})">刪</button>
+      </div>
+    </div>`).join('')||'<div class="small" style="padding:6px 0;color:var(--text3)">今日無進貨紀錄</div>';
+}
+
+function deleteDailyPurchase(id){
+  if(!canWrite()){ alert('無權限'); return; }
+  const r=DB.purchases.find(x=>x.id===id);
+  writeLog('刪除',`進貨 ${r?r.category:''}類 ${r?r.vendor:''} $${r?(+r.amount).toLocaleString():''}`);
+  DB.purchases=DB.purchases.filter(x=>x.id!==id);
+  scheduleSave(); renderDpList(); renderDailyPnl();
+}
+
+/* ════════════════════════════════════════
+   👥 當日人事支出
+════════════════════════════════════════ */
+function addDailyPayroll(){
+  if(!getPerms().write){ alert('您的權限無法新增人事支出'); return; }
+  const dateVal=document.getElementById('d-date').value;
+  if(!dateVal){ alert('請先選擇日期'); return; }
+  const type=document.getElementById('dpr-type').value;
+  const name=document.getElementById('dpr-name').value.trim();
+  const amount=+document.getElementById('dpr-amount').value||0;
+  const note=document.getElementById('dpr-note').value;
+  if(!name||amount<=0){ alert('請填姓名和金額'); return; }
+  if(!DB.dailyPayroll) DB.dailyPayroll=[];
+  DB.dailyPayroll.push({id:Date.now(),date:dateVal,type,name,amount,note});
+  const typeNames={daily:'日薪/陪侍',table:'訂台獎金',intro:'介紹費',ticket:'機票補助',monthly:'月薪'};
+  writeLog('新增',`人事 ${typeNames[type]||type} ${name} $${amount.toLocaleString()}`);
+  scheduleSave();
+  document.getElementById('dpr-name').value='';
+  document.getElementById('dpr-amount').value='';
+  document.getElementById('dpr-note').value='';
+  renderDprList();
+  renderDailyPnl();
+}
+
+function renderDprList(){
+  const dateVal=document.getElementById('d-date').value;
+  if(!dateVal||!document.getElementById('dp-payroll-list')) return;
+  const rows=(DB.dailyPayroll||[]).filter(r=>r.date===dateVal);
+  const total=rows.reduce((s,r)=>s+(+r.amount||0),0);
+  document.getElementById('dpr-total').textContent='$'+total.toLocaleString();
+  const typeNames={daily:'日薪/陪侍',table:'訂台獎金',intro:'介紹費',ticket:'機票補助',monthly:'月薪'};
+  const typeBadges={daily:'badge-gold',table:'badge-green',intro:'badge-orange',ticket:'badge-red',monthly:'badge-gold'};
+  document.getElementById('dp-payroll-list').innerHTML=rows.map(r=>`
+    <div class="list-item" style="padding:6px 10px">
+      <div style="font-size:12px">
+        <span class="badge ${typeBadges[r.type]||'badge-gold'}">${typeNames[r.type]||r.type}</span>
+        <span style="margin-left:6px;font-weight:bold">${r.name}</span>
+        ${r.note?`<span class="small"> ${r.note}</span>`:''}
+      </div>
+      <div class="flex gap8">
+        <span style="font-weight:bold;color:var(--red)">$${(+r.amount).toLocaleString()}</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteDailyPayroll(${r.id})">刪</button>
+      </div>
+    </div>`).join('')||'<div class="small" style="padding:6px 0;color:var(--text3)">今日無人事支出</div>';
+}
+
+function deleteDailyPayroll(id){
+  if(!canWrite()){ alert('無權限'); return; }
+  const r=(DB.dailyPayroll||[]).find(x=>x.id===id);
+  writeLog('刪除',`人事 ${r?r.name:''} $${r?(+r.amount).toLocaleString():''}`);
+  DB.dailyPayroll=DB.dailyPayroll.filter(x=>x.id!==id);
+  scheduleSave(); renderDprList(); renderDailyPnl();
+}
+
+/* ════════════════════════════════════════
+   💸 當日其他支出
+════════════════════════════════════════ */
+function addDailyExpense(){
+  if(!getPerms().write){ alert('您的權限無法新增支出'); return; }
+  const dateVal=document.getElementById('d-date').value;
+  if(!dateVal){ alert('請先選擇日期'); return; }
+  const name=document.getElementById('de-name').value.trim();
+  const amount=+document.getElementById('de-amount').value||0;
+  if(!name||amount<=0){ alert('請填項目名稱和金額'); return; }
+  if(!DB.dailyExpenses) DB.dailyExpenses=[];
+  DB.dailyExpenses.push({id:Date.now(),date:dateVal,name,amount});
+  writeLog('新增',`其他支出 ${name} $${amount.toLocaleString()}`);
+  scheduleSave();
+  document.getElementById('de-name').value='';
+  document.getElementById('de-amount').value='';
+  renderDeList();
+  renderDailyPnl();
+}
+
+function renderDeList(){
+  const dateVal=document.getElementById('d-date').value;
+  if(!dateVal||!document.getElementById('de-list')) return;
+  const rows=(DB.dailyExpenses||[]).filter(r=>r.date===dateVal);
+  const total=rows.reduce((s,r)=>s+(+r.amount||0),0);
+  document.getElementById('de-total').textContent='$'+total.toLocaleString();
+  document.getElementById('de-list').innerHTML=rows.map(r=>`
+    <div class="list-item" style="padding:6px 10px">
+      <div style="font-size:12px">${r.name}</div>
+      <div class="flex gap8">
+        <span style="font-weight:bold;color:var(--red)">$${(+r.amount).toLocaleString()}</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteDailyExpense(${r.id})">刪</button>
+      </div>
+    </div>`).join('')||'<div class="small" style="padding:6px 0;color:var(--text3)">今日無其他支出</div>';
+}
+
+function deleteDailyExpense(id){
+  if(!canWrite()){ alert('無權限'); return; }
+  const r=(DB.dailyExpenses||[]).find(x=>x.id===id);
+  writeLog('刪除',`其他支出 ${r?r.name:''} $${r?(+r.amount).toLocaleString():''}`);
+  DB.dailyExpenses=DB.dailyExpenses.filter(x=>x.id!==id);
+  scheduleSave(); renderDeList(); renderDailyPnl();
+}
+
+/* ════════════════════════════════════════
+   📊 當日損益
+════════════════════════════════════════ */
+function renderDailyPnl(){
+  const dateVal=document.getElementById('d-date').value;
+  const el=document.getElementById('daily-pnl-detail');
+  if(!el||!dateVal) return;
+
+  const bills=(DB.daily||[]).filter(r=>r.date===dateVal);
+
+  // ── 營業收入 ──
+  const revenue=bills.reduce((s,r)=>s+(+r.total||0),0);
+  const cashRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
+  const signRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
+
+  // ── 現金借支（按結帳方式分類）──
+  // 簽單結帳的借支 → 已計入簽單應收，不從當日現金扣
+  // 現金結帳的借支 → 從當日現金扣
+  const cashAdvance=bills.filter(r=>r.payType==='cash'||(r.payType==='mixed'&&(+r.cashAmt||0)>0))
+    .reduce((s,r)=>s+(+r.advance||0),0);
+  const signAdvance=bills.filter(r=>r.payType==='sign')
+    .reduce((s,r)=>s+(+r.advance||0),0);
+  const totalAdvance=bills.reduce((s,r)=>s+(+r.advance||0),0);
+
+  // ── 今日簽單收款（從簽單管理自動抓）──
+  const signCollectToday=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date===dateVal).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+
+  // ── 支出 ──
+  const purchaseTotal=(DB.purchases||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0);
+  const payrollTotal=(DB.dailyPayroll||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0);
+  const expenseTotal=(DB.dailyExpenses||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0);
+  const treatTotal=bills.reduce((s,r)=>s+(+r.treatTotal||0),0);
+  const totalCashOut=purchaseTotal+payrollTotal+expenseTotal;
+
+  // ── 帳上現金計算 ──
+  // 現金收入 + 今日簽單還款 - 所有現金支出 - 現金借支
+  const actualCash=cashRev + signCollectToday - totalCashOut - cashAdvance - signAdvance; // 簽單借支現金已付出
+
+  // ── 損益計算 ──
+  const totalExp=purchaseTotal+payrollTotal+expenseTotal;
+  const netProfit=revenue-totalExp;
+
+  el.innerHTML=`
+    <div class="flex-between" style="padding:5px 0"><span>營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text2)"><span>└ 現金營業</span><span>$${fmt(cashRev)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--text2)"><span>└ 簽單營業</span><span>$${fmt(signRev)}</span></div>
+    ${signCollectToday>0?`<div class="flex-between" style="padding:3px 0 3px 12px;font-size:11px;color:var(--green)"><span>└ 今日收到簽單還款</span><span class="text-green">＋$${fmt(signCollectToday)}</span></div>`:''}
+    <hr class="divider" style="margin:8px 0">
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>進貨付現</span><span>－$${fmt(purchaseTotal)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>人事薪資付現</span><span>－$${fmt(payrollTotal)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>其他支出付現</span><span>－$${fmt(expenseTotal)}</span></div>
+    ${cashAdvance>0?`<div class="flex-between" style="padding:5px 0;color:var(--red)"><span>現金借支（現金結帳）</span><span>－$${fmt(cashAdvance)}</span></div>`:''}
+    ${signAdvance>0?`<div class="flex-between" style="padding:5px 0;color:var(--red)"><span>簽單借支（現金已付出）</span><span>－$${fmt(signAdvance)}</span></div>`:''}
+    ${treatTotal>0?`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--text3)"><span>招待酒水成本（參考）</span><span>$${fmt(treatTotal)}</span></div>`:''}
+    <hr class="divider" style="margin:8px 0">
+    <div class="flex-between" style="padding:8px 0;font-size:14px;font-weight:bold;background:var(--milk2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px">
+      <span>💵 帳上現金</span>
+      <span class="${actualCash>=0?'text-green':'text-red'}">${actualCash>=0?'＋':'－'} $${fmt(Math.abs(actualCash))}</span>
+    </div>
+    <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金收入</span><span>$${fmt(cashRev)}</span></div>
+    ${signCollectToday>0?`<div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 簽單還款收現</span><span class="text-green">$${fmt(signCollectToday)}</span></div>`:''}
+    <div class="flex-between" style="font-size:11px;padding:2px 12px;color:var(--text2)"><span>└ 現金支出合計</span><span class="text-red">－$${fmt(totalCashOut+cashAdvance+signAdvance)}</span></div>
+    <hr class="divider" style="margin:8px 0">
+    <div class="flex-between" style="padding:8px 0;font-size:15px;font-weight:bold;border-top:2px solid var(--milk3)">
+      <span>📊 當日損益</span>
+      <span class="${netProfit>=0?'text-green':'text-red'}">${netProfit>=0?'＋':'－'} $${fmt(Math.abs(netProfit))}</span>
+    </div>
+    <div class="flex-between" style="font-size:11px;color:var(--text3);padding:2px 0"><span>（營業額 $${fmt(revenue)} － 支出 $${fmt(totalExp)}）</span></div>`;
+}
+
+
+function toggleSection(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const isHidden=el.style.display==='none';
+  el.style.display=isHidden?'':'none';
+  // Update button text if toggle button exists
+  const btn=document.getElementById(id.replace('-body','-toggle').replace('daily-','').replace('-section',''));
+  const moBtn=document.getElementById('mo-table-toggle');
+  if(id==='mo-table-body' && moBtn){
+    moBtn.textContent=isHidden?'收合 ▲':'展開 ▼';
+  }
+}
+
+
+/* ════════════════════════════════════════
+   📋 年度報告 Tab
+════════════════════════════════════════ */
+let rpTab='monthly';
+function setReportTab(t){
+  rpTab=t;
+  document.querySelectorAll('#page-report .section-tab').forEach((b,i)=>b.classList.toggle('active',['monthly','yearly'][i]===t));
+  document.getElementById('rp-monthly').style.display=t==='monthly'?'':'none';
+  document.getElementById('rp-yearly').style.display=t==='yearly'?'':'none';
+  if(t==='monthly') renderReport(); else renderYearlyReport();
+}
+
+/* ════════════════════════════════════════
+   暴露函數給 HTML onclick 使用（type=module 必須）
+════════════════════════════════════════ */
+window.setDailyToday = setDailyToday;
+window.setDailyPurchaseTab = setDailyPurchaseTab;
+window.checkDpVendorOther = checkDpVendorOther;
+window.addDailyPurchase = addDailyPurchase;
+window.deleteDailyPurchase = deleteDailyPurchase;
+window.addDailyPayroll = addDailyPayroll;
+window.deleteDailyPayroll = deleteDailyPayroll;
+window.addDailyExpense = addDailyExpense;
+window.deleteDailyExpense = deleteDailyExpense;
+window.toggleSection = toggleSection;
+window.addPA = addPA;
+window.addPB = addPB;
+window.addPI = addPI;
+window.deletePurchase = deletePurchase;
+window.openBillForm = openBillForm;
+window.closeBillForm = closeBillForm;
+window.addTableFeeRow = addTableFeeRow;
+window.addDrinkRow = addDrinkRow;
+window.addFoodRow = addFoodRow;
+window.calcBillTotal = calcBillTotal;
+window.saveBill = saveBill;
+window.toggleBillDetail = toggleBillDetail;
+window.deleteBill = deleteBill;
+window.editBill = editBill;
+// purchase page removed
+window.clearLogs = clearLogs;
+window.doLogin = doLogin;
+window.doLogout = doLogout;
+window.removeP = removeP;
+window.renderDailyList = renderDailyList;
+window.renderMonthly = renderMonthly;
+window.renderOverview = renderOverview;
+window.renderReport = renderReport;
+window.renderSigning = renderSigning;
+window.renderYearlyReport = renderYearlyReport;
+window.saveMonthly = saveMonthly;
+window.selOvMonth = selOvMonth;
+window.setReportTab = setReportTab;
+window.showPage = showPage;
+window.updPR = updPR;
+window.saveTarget = saveTarget;
+window.exportExcel = exportExcel;
+window.exportBackup = exportBackup;
+window.importBackup = importBackup;
+window.editPurchase = editPurchase;
+window.editSigning = editSigning;
+window.setSgTab = setSgTab;
+window.renderSgClients = renderSgClients;
+window.openAddSignModal = openAddSignModal;
+window.closeAddSignModal = closeAddSignModal;
+window.saveAddSign = saveAddSign;
+window.deleteSignBill = deleteSignBill;
+window.loadClientBills = loadClientBills;
+window.calcColSelected = calcColSelected;
+window.calcColDiscount = calcColDiscount;
+window.saveCollection = saveCollection;
+window.renderSgHistory = renderSgHistory;
+window.saveSgSettings = saveSgSettings;
+window.editDaily = editDaily;
+window.saveEdit = saveEdit;
+window.closeEditModal = closeEditModal;
+window.openEditModal = openEditModal;
+window.renderLog = renderLog;
+window.deleteDaily = deleteDaily;
+window.switchAuthTab = switchAuthTab;
+window.toggleMixedPay = toggleMixedPay;
+window.addTreatRow = addTreatRow;
+window.calcMixedPay = calcMixedPay;
+
+/* Firebase Auth 狀態監聽（自動登入） */
+onAuthStateChanged(auth, async user => {
+  if(user){
+    currentUser = user;
+    currentRole = getUserRole(user.email);
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    const displayName = user.email.replace('@kaihat.app','');
+    document.getElementById('hdr-username').textContent = displayName;
+    setCloudStatus('saving');
+    await loadDB();
+    writeLog('登入', '帳號登入系統');
+    await saveDB();
+    setCloudStatus('saved');
+    startRealtimeSync();
+    initYearSelects();
+    setDefaultDate('d-date');
+    setDefaultDate('pu-date');
+    setDefaultDate('sg-date');
+    applyRoleUI();
+    showPage('overview');
+  } else {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('main-app').classList.add('hidden');
+  }
+});
+
+/* ════════════════════════════════════════
+   UTILS
+════════════════════════════════════════ */
+function fmt(n){ return Number(n||0).toLocaleString(); }
+function ym(y,m){ return y+'-'+(String(m).padStart(2,'0')); }
+function parseYM(s){ const p=s.split('-'); return {y:+p[0],m:+p[1]}; }
+function setDefaultDate(id){ const el=document.getElementById(id); if(el&&!el.value) el.value=NOW.toISOString().slice(0,10); }
+
+function initYearSelects(){
+  const y=NOW.getFullYear(), years=[];
+  for(let i=y-4;i<=y+1;i++) years.push(i);
+  ['ov-year','dl-year','pu-year','pu-sum-year','pr-year','mo-year','sg-year','sg-filter-year','rp-year','rp-yr-a','rp-yr-b'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    el.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
+  });
+  const months=Array.from({length:12},(_,i)=>`<option value="${i+1}"${(i+1)===NOW.getMonth()+1?' selected':''}>${i+1}月</option>`).join('');
+  ['dl-month','pu-month','pr-month','mo-month'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=months;
+  });
+  const rpa=document.getElementById('rp-yr-b'); if(rpa) rpa.value=y-1;
+  const puSM=document.getElementById('pu-sum-month');
+  if(puSM) puSM.innerHTML='<option value="0">全年度</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}月</option>`).join('');
+  const sgm=document.getElementById('sg-month');
+  if(sgm) sgm.innerHTML='<option value="0">全部月份</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}月</option>`).join('');
+}
+
+function refreshCurrentPage(id){
+  if(id==='overview') renderOverview();
+  else if(id==='daily') renderDailyList();
+  else if(id==='monthly') renderMonthly();
+  else if(id==='signing') renderSigning();
+  else if(id==='report') renderReport();
+  else if(id==='log') renderLog();
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+function showPage(id){
+  document.querySelectorAll('[id^="page-"]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('page-'+id).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const map={overview:0,daily:1,monthly:2,signing:3,report:4,log:5};
+  document.querySelectorAll('.nav-btn')[map[id]]?.classList.add('active');
+  refreshCurrentPage(id);
+  if(id==='log') renderLog();
+}
+
+/* ════════════════════════════════════════
+   📊 總覽
+════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   📈 圖表 + 🔔 目標提醒
+════════════════════════════════════════ */
+let trendChart=null, pieChart=null;
+
+function targetKey(y,m){ return ym(y,m); }
+
+function saveTarget(){
+  if(!getPerms().write){ alert('您的權限無法設定目標'); return; }
+  const year=+document.getElementById('ov-year').value;
+  const month=+document.getElementById('ov-month').value;
+  if(!month){ alert('請先在上方選擇特定月份再設定目標'); return; }
+  const val=+document.getElementById('ov-target-input').value||0;
+  if(!DB.targets) DB.targets={};
+  DB.targets[targetKey(year,month)]=val;
+  writeLog('修改', `設定 ${year}年${month}月 營業目標 $${val.toLocaleString()}`);
+  scheduleSave();
+  renderOverview();
+  alert('✅ 目標已儲存');
+}
+
+function renderTargetAndAlert(year, month, totalRev){
+  const targetCard=document.getElementById('ov-target-card');
+  const alertBox=document.getElementById('ov-alert-box');
+  const progBox=document.getElementById('ov-target-progress');
+  if(!month){
+    targetCard.style.display='none';
+    alertBox.innerHTML='';
+    return;
+  }
+  targetCard.style.display='';
+  const target=(DB.targets&&DB.targets[targetKey(year,month)])||0;
+  document.getElementById('ov-target-input').value = target||'';
+
+  if(target>0){
+    const pct=Math.round(totalRev/target*100);
+    const reached=totalRev>=target;
+    const diff=Math.abs(target-totalRev);
+    // days info
+    const now=new Date();
+    const isCurrentMonth=(now.getFullYear()===year&&now.getMonth()+1===month);
+    const daysInMonth=new Date(year,month,0).getDate();
+    const dayNow=isCurrentMonth?now.getDate():daysInMonth;
+    const daysLeft=Math.max(daysInMonth-dayNow,0);
+    const dailyNeed=daysLeft>0&&!reached?Math.ceil(diff/daysLeft):0;
+
+    progBox.innerHTML=`
+      <div class="flex-between small mb8"><span>達成率 ${pct}%</span><span>目標 $${fmt(target)}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(pct,100)}%;background:${reached?'var(--green)':pct>=70?'var(--orange)':'var(--red)'}"></div></div>`;
+
+    if(reached){
+      alertBox.innerHTML=`<div class="alert alert-green">🎉 本月已達成目標！超出 $${fmt(totalRev-target)}</div>`;
+    } else if(isCurrentMonth && daysLeft>0){
+      alertBox.innerHTML=`<div class="alert alert-orange">🔔 距離目標還差 $${fmt(diff)}，剩 ${daysLeft} 天，平均每日需做 $${fmt(dailyNeed)}</div>`;
+    } else {
+      alertBox.innerHTML=`<div class="alert alert-red">⚠️ 本月未達標，差 $${fmt(diff)}（達成 ${pct}%）</div>`;
+    }
+  } else {
+    progBox.innerHTML='<div class="small">尚未設定本月目標</div>';
+    alertBox.innerHTML='';
+  }
+}
+
+function renderCharts(year, month){
+  const chartCard=document.getElementById('ov-chart-card');
+  const pieCard=document.getElementById('ov-pie-card');
+  if(typeof Chart==='undefined'){ return; }
+
+  // Trend chart - only in full year view
+  if(!month){
+    chartCard.style.display='';
+    const monthly=[];
+    for(let mm=1;mm<=12;mm++){
+      const days=DB.daily.filter(r=>r.date&&r.date.startsWith(`${year}-${String(mm).padStart(2,'0')}`));
+      monthly.push(days.reduce((s,r)=>s+(+r.total||0),0));
+    }
+    const ctx=document.getElementById('ov-trend-chart').getContext('2d');
+    if(trendChart) trendChart.destroy();
+    trendChart=new Chart(ctx,{
+      type:'line',
+      data:{
+        labels:['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+        datasets:[{label:'營業額',data:monthly,borderColor:'#A8834E',backgroundColor:'rgba(168,131,78,0.1)',fill:true,tension:0.3,pointBackgroundColor:'#6B4F40'}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString()}}}}
+    });
+  } else {
+    chartCard.style.display='none';
+    if(trendChart){ trendChart.destroy(); trendChart=null; }
+  }
+
+  // Pie chart - sign vs cash
+  const filtered=DB.daily.filter(r=>{const d=new Date(r.date);return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;});
+  const totalSign=filtered.reduce((s,r)=>s+(+r.sign||0),0);
+  const totalCash=filtered.reduce((s,r)=>s+(+r.cash||0),0);
+  if(totalSign+totalCash>0){
+    pieCard.style.display='';
+    const ctx2=document.getElementById('ov-pie-chart').getContext('2d');
+    if(pieChart) pieChart.destroy();
+    pieChart=new Chart(ctx2,{
+      type:'doughnut',
+      data:{labels:['簽單','現金'],datasets:[{data:[totalSign,totalCash],backgroundColor:['#C0784A','#5A8A6A']}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+    });
+  } else {
+    pieCard.style.display='none';
+    if(pieChart){ pieChart.destroy(); pieChart=null; }
+  }
+}
+
+function renderOverview(){
+  const year=+document.getElementById('ov-year').value;
+  const month=+document.getElementById('ov-month').value;
+  const filtered=DB.daily.filter(r=>{
+    const d=new Date(r.date);
+    return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;
+  });
+  let rev=0,sign=0,cash=0;
+  filtered.forEach(r=>{
+    rev+=+r.total||0;
+    if(r.payType==='mixed'){ cash+=+r.cashAmt||0; sign+=+r.signAmt||0; }
+    else if(r.payType==='sign'){ sign+=+r.total||0; }
+    else if(r.payType==='cash'){ cash+=+r.total||0; }
+    else { sign+=+r.sign||0; cash+=+r.cash||0; } // legacy
+  });
+  document.getElementById('ov-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">總營業額</div><div class="stat-value">$${fmt(rev)}</div></div>
+    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${fmt(sign)}</div></div>
+    <div class="stat-card"><div class="stat-label">現金金額</div><div class="stat-value">$${fmt(cash)}</div></div>`;
+
+  renderTargetAndAlert(year, month, rev);
+  renderCharts(year, month);
+  const grid=document.getElementById('ov-monthly-grid');
+  const tbl=document.getElementById('ov-daily-table');
+  if(!month){
+    grid.style.display=''; tbl.style.display='none';
+    document.getElementById('ov-months').innerHTML=Array.from({length:12},(_,i)=>{
+      const k=ym(year,i+1);
+      const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()===i;});
+      const r2=days.reduce((s,r)=>s+(+r.total||0),0);
+      const mo=DB.monthly[k]; const np=mo?mo.netProfit:null;
+      return `<div class="month-cell ${r2>0?'has-data':''}" onclick="selOvMonth(${year},${i+1})">
+        <div class="month-cell-name">${i+1}月</div>
+        <div class="month-cell-value">${r2>0?'$'+fmt(r2):'-'}</div>
+        ${np!==null?`<div class="${np>=0?'growth-up':'growth-down'}">${np>=0?'+':''} $${fmt(Math.abs(np))}</div>`:''}
+      </div>`;
+    }).join('');
+  } else {
+    grid.style.display='none'; tbl.style.display='';
+    document.getElementById('ov-table-title').textContent=`${year}年${month}月 每日紀錄`;
+    const rows=filtered.sort((a,b)=>a.date.localeCompare(b.date));
+    document.getElementById('ov-daily-tbody').innerHTML=rows.map(r=>
+      `<tr><td>${r.date}</td><td>${r.num||'-'}</td><td>$${fmt(r.total)}</td><td>$${fmt(r.sign)}</td><td>$${fmt(r.cash)}</td></tr>`).join('');
+    document.getElementById('ov-t-total').textContent='$'+fmt(rev);
+    document.getElementById('ov-t-sign').textContent='$'+fmt(sign);
+    document.getElementById('ov-t-cash').textContent='$'+fmt(cash);
+  }
+  const pnlEl=document.getElementById('ov-pnl-list');
+  const keys=(month?[ym(year,month)]:Array.from({length:12},(_,i)=>ym(year,i+1))).filter(k=>DB.monthly[k]);
+  if(!keys.length){ pnlEl.innerHTML='<div class="small text-center" style="padding:10px">尚無月度結算資料</div>'; return; }
+  pnlEl.innerHTML=keys.map(k=>{
+    const mo=DB.monthly[k]; if(!mo)return'';
+    const{y,m}=parseYM(k); const np=+mo.netProfit||0;
+    return `<div class="list-item">
+      <div><div style="font-size:13px;font-weight:bold">${y}年${m}月</div>
+      <div class="small">營業額 $${fmt(mo.revenue)} ｜ 支出 $${fmt(mo.totalExp)}</div></div>
+      <div class="${np>=0?'text-green':'text-red'}" style="font-size:15px;font-weight:bold">${np>=0?'+ ':'- '}$${fmt(Math.abs(np))}</div>
+    </div>`;
+  }).join('');
+}
+function selOvMonth(y,m){ document.getElementById('ov-month').value=m; renderOverview(); }
+
+/* ════════════════════════════════════════
+   💰 每日營業
+════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   💰 每日營業（重新設計版）
+   每張單包含：包廂費、檯費、酒水、小菜、借支
+════════════════════════════════════════ */
+
+// 取得酒水廠商清單（共用進貨廠商）
+function getDrinkVendors(){
+  return DB.vendors && DB.vendors.A ? DB.vendors.A : [];
+}
+
+function setDailyToday(){
+  document.getElementById('d-date').value = NOW.toISOString().slice(0,10);
+  renderDailyList();
+}
+
+function openBillForm(){
+  document.getElementById('bill-form-card').classList.remove('hidden');
+  document.getElementById('btn-open-bill').style.display='none';
+  // init empty rows
+  document.getElementById('table-fee-rows').innerHTML='';
+  document.getElementById('drink-rows').innerHTML='';
+  document.getElementById('food-rows').innerHTML='';
+  document.getElementById('treat-rows').innerHTML='';
+  document.getElementById('b-num').value='';
+  document.getElementById('b-room').value='';
+  document.getElementById('b-client').value='';
+  document.getElementById('b-room-fee').value='';
+  document.getElementById('b-advance').value='';
+  document.getElementById('b-note').value='';
+  document.getElementById('b-pay-type').value='cash';
+  document.getElementById('mixed-pay-section').style.display='none';
+  document.getElementById('b-cash-amt').value='';
+  document.getElementById('b-sign-amt').value='';
+  document.getElementById('b-discount').value='';
+  document.getElementById('b-discount-note').value='';
+  document.getElementById('b-discount-row').style.display='none';
+  calcBillTotal();
+  addTableFeeRow();
+}
+
+function closeBillForm(){
+  document.getElementById('bill-form-card').classList.add('hidden');
+  document.getElementById('btn-open-bill').style.display='';
+}
+
+function addTableFeeRow(){
+  const container=document.getElementById('table-fee-rows');
+  const idx=container.children.length;
+  const div=document.createElement('div');
+  div.className='table-fee-row';
+  div.style.cssText='display:grid;grid-template-columns:1fr 90px 90px 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <input type="text" placeholder="小名" oninput="calcBillTotal()">
+    <input type="time" value="20:00" oninput="calcBillTotal()">
+    <input type="time" value="23:00" oninput="calcBillTotal()">
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function addDrinkRow(){
+  const container=document.getElementById('drink-rows');
+  const vendors=getDrinkVendors();
+  const vendorOpts=vendors.map(v=>`<option value="${v}">${v}</option>`).join('');
+  const div=document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:120px 1fr 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <select oninput="calcBillTotal()"><option value="">選廠商</option>${vendorOpts}</select>
+    <input type="text" placeholder="品項名稱" oninput="calcBillTotal()">
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function addFoodRow(){
+  const container=document.getElementById('food-rows');
+  const div=document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <input type="text" placeholder="品項名稱" oninput="calcBillTotal()">
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function addTreatRow(){
+  const container=document.getElementById('treat-rows');
+  const vendors=getDrinkVendors();
+  const vendorOpts=vendors.map(v=>`<option value="${v}">${v}</option>`).join('');
+  const div=document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:100px 1fr 90px 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
+  div.innerHTML=`
+    <select oninput="calcBillTotal()">
+      <option value="">廠商</option>${vendorOpts}
+    </select>
+    <input type="text" placeholder="品項名稱" oninput="calcBillTotal()">
+    <select oninput="calcBillTotal()" style="font-size:11px">
+      <option value="guest">招待客人</option>
+      <option value="self">店內自飲</option>
+    </select>
+    <input type="number" placeholder="金額" oninput="calcBillTotal()">
+    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
+  container.appendChild(div);
+  calcBillTotal();
+}
+
+function calcBillTotal(){
+  // 包廂費
+  const roomFee=+document.getElementById('b-room-fee').value||0;
+
+  // 檯費
+  let tableFee=0;
+  document.querySelectorAll('#table-fee-rows .table-fee-row').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) tableFee+=+inputs[0].value||0;
+  });
+  document.getElementById('table-fee-subtotal').textContent='$'+tableFee.toLocaleString();
+
+  // 酒水
+  let drinkTotal=0;
+  document.querySelectorAll('#drink-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) drinkTotal+=+inputs[0].value||0;
+  });
+  document.getElementById('drink-subtotal').textContent='$'+drinkTotal.toLocaleString();
+
+  // 小菜
+  let foodTotal=0;
+  document.querySelectorAll('#food-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) foodTotal+=+inputs[0].value||0;
+  });
+  document.getElementById('food-subtotal').textContent='$'+foodTotal.toLocaleString();
+
+  // 招待酒水（不計入營業額，只顯示統計）
+  let treatTotal=0;
+  document.querySelectorAll('#treat-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input[type="number"]');
+    if(inputs[0]) treatTotal+=+inputs[0].value||0;
+  });
+  const treatEl=document.getElementById('treat-subtotal');
+  if(treatEl) treatEl.textContent='$'+treatTotal.toLocaleString();
+
+  const subtotalOrig=roomFee+tableFee+drinkTotal+foodTotal;
+  const discountEl=document.getElementById('b-discount');
+  const discount=discountEl?+discountEl.value||0:0;
+  const subtotal=Math.max(0, subtotalOrig-discount);
+
+  const origEl=document.getElementById('b-subtotal-orig');
+  if(origEl) origEl.textContent='$'+subtotalOrig.toLocaleString();
+
+  const discRow=document.getElementById('b-discount-row');
+  const discShow=document.getElementById('b-discount-show');
+  if(discRow) discRow.style.display=discount>0?'':'none';
+  if(discShow) discShow.textContent='-$'+discount.toLocaleString();
+
+  document.getElementById('b-subtotal').textContent='$'+subtotal.toLocaleString();
+  // recalc mixed if open
+  const payType=document.getElementById('b-pay-type');
+  if(payType && payType.value==='mixed') calcMixedPay();
+}
+
+function toggleMixedPay(){
+  const t=document.getElementById('b-pay-type').value;
+  document.getElementById('mixed-pay-section').style.display=t==='mixed'?'':'none';
+  if(t==='mixed') calcMixedPay();
+}
+
+function calcMixedPay(){
+  const subtotalEl=document.getElementById('b-subtotal');
+  const total=+(subtotalEl.textContent.replace(/[$,]/g,''))||0;
+  const cash=+document.getElementById('b-cash-amt').value||0;
+  const sign=+document.getElementById('b-sign-amt').value||0;
+  const diff=total-(cash+sign);
+  const check=document.getElementById('mixed-pay-check');
+  if(diff===0){
+    check.style.background='#D4EAD4'; check.style.color='var(--green)';
+    check.textContent='✓ 現金 $'+cash.toLocaleString()+' ＋ 簽單 $'+sign.toLocaleString()+' ＝ $'+total.toLocaleString();
+  } else if(diff>0){
+    check.style.background='#EAD4D4'; check.style.color='var(--red)';
+    check.textContent='⚠ 尚差 $'+diff.toLocaleString()+'（總額 $'+total.toLocaleString()+'）';
+  } else {
+    check.style.background='#EAD4D4'; check.style.color='var(--red)';
+    check.textContent='⚠ 超出 $'+Math.abs(diff).toLocaleString()+'（總額 $'+total.toLocaleString()+'）';
+  }
+}
+
+function collectTableFees(){
+  const rows=[];
+  document.querySelectorAll('#table-fee-rows .table-fee-row').forEach(row=>{
+    const allInputs=row.querySelectorAll('input');
+    const name=allInputs[0]?allInputs[0].value.trim():'';
+    const startTime=allInputs[1]?allInputs[1].value:'';
+    const endTime=allInputs[2]?allInputs[2].value:'';
+    const fee=+(allInputs[3]?allInputs[3].value:0)||0;
+    if(name||fee>0) rows.push({name,startTime,endTime,fee});
+  });
+  return rows;
+}
+
+function collectDrinks(){
+  const rows=[];
+  document.querySelectorAll('#drink-rows > div').forEach(row=>{
+    const vendor=row.querySelector('select')?row.querySelector('select').value:'';
+    const inputs=row.querySelectorAll('input');
+    const item=inputs[0]?inputs[0].value.trim():'';
+    const amount=+(inputs[1]?inputs[1].value:0)||0;
+    if(item||amount>0) rows.push({vendor,item,amount});
+  });
+  return rows;
+}
+
+function collectFoods(){
+  const rows=[];
+  document.querySelectorAll('#food-rows > div').forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const item=inputs[0]?inputs[0].value.trim():'';
+    const amount=+(inputs[1]?inputs[1].value:0)||0;
+    if(item||amount>0) rows.push({item,amount});
+  });
+  return rows;
+}
+
+function collectTreats(){
+  const rows=[];
+  document.querySelectorAll('#treat-rows > div').forEach(row=>{
+    const vendor=row.querySelector('select')?row.querySelector('select').value:'';
+    const inputs=row.querySelectorAll('input');
+    const selects=row.querySelectorAll('select');
+    const item=inputs[0]?inputs[0].value.trim():'';
+    const treatType=selects[1]?selects[1].value:'guest';
+    const amount=+(inputs[1]?inputs[1].value:0)||0;
+    if(item||amount>0) rows.push({vendor,item,treatType,amount});
+  });
+  return rows;
+}
+
+function saveBill(){
+  if(!getPerms().dailyAdd){ alert('您的權限無法新增單據'); return; }
+  const date=document.getElementById('d-date').value;
+  if(!date){ alert('請先選擇日期'); return; }
+  const num=document.getElementById('b-num').value.trim();
+  const room=document.getElementById('b-room').value.trim();
+  const client=document.getElementById('b-client').value.trim();
+  const payType=document.getElementById('b-pay-type').value;
+  const roomFee=+document.getElementById('b-room-fee').value||0;
+  // Warn if sign/mixed without client name
+  if((payType==='sign'||payType==='mixed')&&!client){
+    if(!confirm('⚠️ 簽單結帳建議填寫客戶姓名，以便追蹤應收帳款。\n確定不填寫客戶姓名嗎？')) return;
+  }
+  const advance=+document.getElementById('b-advance').value||0;
+  const discount=+document.getElementById('b-discount').value||0;
+  const discountNote=document.getElementById('b-discount-note').value;
+  const note=document.getElementById('b-note').value;
+
+  const tableFees=collectTableFees();
+  const drinks=collectDrinks();
+  const foods=collectFoods();
+  const treats=collectTreats();
+
+  const tableFeeTotal=tableFees.reduce((s,r)=>s+r.fee,0);
+  const drinkTotal=drinks.reduce((s,r)=>s+r.amount,0);
+  const foodTotal=foods.reduce((s,r)=>s+r.amount,0);
+  const treatTotal=treats.reduce((s,r)=>s+r.amount,0);
+  const totalOrig=roomFee+tableFeeTotal+drinkTotal+foodTotal;
+  const total=Math.max(0, totalOrig-discount);
+
+  if(totalOrig<=0){ alert('請輸入至少一項金額'); return; }
+
+  // Handle mixed payment
+  let cashAmt=0, signAmt=0;
+  if(payType==='cash'){ cashAmt=total; signAmt=0; }
+  else if(payType==='sign'){ cashAmt=0; signAmt=total; }
+  else if(payType==='mixed'){
+    cashAmt=+document.getElementById('b-cash-amt').value||0;
+    signAmt=+document.getElementById('b-sign-amt').value||0;
+    if(cashAmt+signAmt!==total){
+      alert(`現金 $${cashAmt.toLocaleString()} ＋ 簽單 $${signAmt.toLocaleString()} ≠ 小計 $${total.toLocaleString()}，請確認金額`);
+      return;
+    }
+  }
+
+  const bill={
+    id: Date.now(),
+    date, num, room, client,
+    roomFee, tableFees, drinks, foods, treats,
+    tableFeeTotal, drinkTotal, foodTotal, treatTotal,
+    totalOrig, discount, discountNote,
+    total,
+    payType,   // 'cash' | 'sign' | 'mixed'
+    cashAmt, signAmt,
+    advance,
+    note
+  };
+
+  if(!DB.daily) DB.daily=[];
+  DB.daily.push(bill);
+  // Auto-create sign bill if needed
+  if(bill.payType==='sign'||bill.payType==='mixed') syncSignBillsFromDaily();
+  writeLog('新增', `單據 ${num||'無號'} ${room||''} 原 $${totalOrig.toLocaleString()}${discount>0?' 折扣-$'+discount.toLocaleString()+' 實收$'+total.toLocaleString():''} ${payType==='sign'?'簽單':payType==='mixed'?'混合':'現金'}`);
+  scheduleSave();
+  closeBillForm();
+  renderDailyList();
+}
+
+function renderDailyList(){
+  const dateVal=document.getElementById('d-date').value;
+  // Derive year/month directly from dateVal for reliability
+  let year, month;
+  if(dateVal){
+    const d=new Date(dateVal);
+    year=d.getFullYear();
+    month=d.getMonth()+1;
+    // Sync selectors to match
+    const dlYear=document.getElementById('dl-year');
+    const dlMonth=document.getElementById('dl-month');
+    if(dlYear) dlYear.value=year;
+    if(dlMonth) dlMonth.value=month;
+  } else {
+    year=+document.getElementById('dl-year').value||new Date().getFullYear();
+    month=+document.getElementById('dl-month').value||new Date().getMonth()+1;
+  }
+
+  // ── 當日單據 ──
+  const todayBills=dateVal ? DB.daily.filter(r=>r.date===dateVal) : [];
+  // render sub-sections
+  if(dateVal){
+    renderDpVendors();
+    renderDpList();
+    renderDprList();
+    renderDeList();
+    renderDailyPnl();
+  }
+  const listTitle=document.getElementById('dl-list-title');
+  if(listTitle) listTitle.textContent = dateVal ? `${dateVal} 單據列表（共 ${todayBills.length} 張）` : '單據列表';
+
+  // 當日統計
+  const dayTotal=todayBills.reduce((s,r)=>s+(+r.total||0),0);
+  const dayCashRev=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
+  const daySign=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
+  const dayAdvance=todayBills.reduce((s,r)=>s+(+r.advance||0),0);
+  const dayCashAdvance=todayBills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  // Today sign collections
+  const daySignCollect=dateVal?(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date===dateVal).reduce((ss,p)=>ss+(+p.amount||0),0),0):0;
+  // Today cash expenses
+  const dayCashOut=dateVal?(
+    (DB.purchases||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyPayroll||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyExpenses||[]).filter(r=>r.date===dateVal).reduce((s,r)=>s+(+r.amount||0),0)
+  ):0;
+  const signAdvance=todayBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
+  // Actual cash on hand
+  const dayActualCash=dayCashRev + daySignCollect - dayCashOut - dayCashAdvance - signAdvance;
+
+  const dayStats=document.getElementById('daily-day-stats');
+  if(dayStats){
+    dayStats.style.gridTemplateColumns='repeat(3,1fr)';
+    dayStats.innerHTML=`
+    <div class="stat-card"><div class="stat-label">當日營業額</div><div class="stat-value">$${dayTotal.toLocaleString()}</div><div class="stat-sub">${todayBills.length} 張單</div></div>
+    <div class="stat-card"><div class="stat-label">現金收入</div><div class="stat-value green">$${dayCashRev.toLocaleString()}</div><div class="stat-sub">現金結帳</div></div>
+    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value" style="color:var(--orange)">$${daySign.toLocaleString()}</div><div class="stat-sub">簽單結帳</div></div>
+    <div class="stat-card"><div class="stat-label">現金借支</div><div class="stat-value ${dayAdvance>0?'red':''}">$${dayAdvance.toLocaleString()}</div><div class="stat-sub">${dayCashAdvance>0&&signAdvance>0?'現金$'+dayCashAdvance.toLocaleString()+'+簽單$'+signAdvance.toLocaleString():dayCashAdvance>0?'現金結帳借支':dayAdvance>0?'簽單結帳借支':'-'}</div></div>
+    <div class="stat-card" style="grid-column:span 2;background:${dayActualCash>=0?'#D4EAD4':'#EAD4D4'};border-color:${dayActualCash>=0?'var(--green)':'var(--red)'}">
+      <div class="stat-label">💵 帳上實際現金</div>
+      <div class="stat-value ${dayActualCash>=0?'green':'red'}">${dayActualCash>=0?'＋':'－'} $${Math.abs(dayActualCash).toLocaleString()}</div>
+      <div class="stat-sub">現金收入${daySignCollect>0?'＋還款':''} － 進貨 － 人事 － 其他${dayCashAdvance>0?' － 現金借支':''}</div>
+    </div>`;
+  }
+
+  // 月統計
+  const monthBills=DB.daily.filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`));
+  const moTotal=monthBills.reduce((s,r)=>s+(+r.total||0),0);
+  const moCash=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
+  const moSign=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
+  const moAdvance=monthBills.reduce((s,r)=>s+(+r.advance||0),0);
+  const moCashAdvance=monthBills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  const moSignAdv=monthBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
+  // Month sign collections from signing system
+  const moSignCollectMo=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>p.date&&p.date.startsWith(`${year}-${String(month).padStart(2,'0')}`))
+    .reduce((ss,p)=>ss+(+p.amount||0),0),0);
+  // Month cash expenses
+  const moCashExpenses=
+    (DB.purchases||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyPayroll||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0)+
+    (DB.dailyExpenses||[]).filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.amount||0),0);
+  // Month actual cash
+  const moActualCashCard=moCash + moSignCollectMo - moCashExpenses - moCashAdvance - moSignAdv;
+
+  const moStats=document.getElementById('daily-month-stats');
+  if(moStats){
+    moStats.style.gridTemplateColumns='repeat(3,1fr)';
+    moStats.innerHTML=`
+    <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${moTotal.toLocaleString()}</div><div class="stat-sub">${monthBills.length} 張單</div></div>
+    <div class="stat-card"><div class="stat-label">月現金收入</div><div class="stat-value green">$${moCash.toLocaleString()}</div><div class="stat-sub">現金結帳</div></div>
+    <div class="stat-card"><div class="stat-label">月簽單金額</div><div class="stat-value" style="color:var(--orange)">$${moSign.toLocaleString()}</div><div class="stat-sub">簽單結帳</div></div>
+    <div class="stat-card"><div class="stat-label">月現金借支</div><div class="stat-value ${moAdvance>0?'red':''}">$${moAdvance.toLocaleString()}</div><div class="stat-sub">${moCashAdvance>0&&moSignAdv>0?'現$'+moCashAdvance.toLocaleString()+'+簽$'+moSignAdv.toLocaleString()+'（均扣現金）':moCashAdvance>0?'現金結帳借支':moAdvance>0?'簽單結帳借支（扣現金）':'-'}</div></div>
+    <div class="stat-card" style="grid-column:span 2;background:${moActualCashCard>=0?'#D4EAD4':'#EAD4D4'};border-color:${moActualCashCard>=0?'var(--green)':'var(--red)'}">
+      <div class="stat-label">💵 月帳上實際現金</div>
+      <div class="stat-value ${moActualCashCard>=0?'green':'red'}">${moActualCashCard>=0?'＋':'－'} $${Math.abs(moActualCashCard).toLocaleString()}</div>
+      <div class="stat-sub">現金收入${moSignCollectMo>0?'＋簽單還款':''} － 進貨 － 人事 － 其他 － 借支</div>
+    </div>`;
+  }
+
+  // 當日單據展開列表
+  const listEl=document.getElementById('dl-bills-list');
+  const emptyEl=document.getElementById('dl-empty');
+  if(!todayBills.length){
+    if(listEl) listEl.innerHTML='';
+    if(emptyEl) emptyEl.style.display='';
+  } else {
+    if(emptyEl) emptyEl.style.display='none';
+    if(listEl) listEl.innerHTML=todayBills.map(b=>{
+      const canEdit=['admin','accounting'].includes(currentRole);
+      const payBadge=b.payType==='sign'?'<span class="badge badge-orange">簽單</span>':b.payType==='mixed'?`<span class="badge badge-gold">現$${(+b.cashAmt||0).toLocaleString()}+簽$${(+b.signAmt||0).toLocaleString()}</span>`:'<span class="badge badge-green">現金</span>';
+      return `<div class="list-item" style="flex-direction:column;align-items:stretch">
+        <div class="flex-between" style="cursor:pointer" onclick="toggleBillDetail(${b.id})">
+          <div>
+            <span style="font-weight:bold;font-size:13px">${b.num||'無單號'}</span>
+            <span style="margin:0 8px;color:var(--text3)">包廂 ${b.room||'-'}</span>
+            ${b.client?`<span style="margin-right:6px;font-size:12px;color:var(--brown2);font-weight:bold">${b.client}</span>`:''}
+            ${payBadge}
+          </div>
+          <div class="flex gap8" style="align-items:center">
+            <span style="font-weight:bold;color:var(--brown3)">$${(+b.total||0).toLocaleString()}</span>
+            ${canEdit?`<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();editBill(${b.id})">✏️</button>`:''}
+            ${canEdit?`<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteBill(${b.id})">刪</button>`:''}
+            <span style="color:var(--text3);font-size:16px" id="arrow-${b.id}">▼</span>
+          </div>
+        </div>
+        <div id="bill-detail-${b.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--milk3)">
+          ${renderBillDetail(b)}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // 月度表格
+  let tt=0,ts=0,tc=0,ta=0;
+  const tbody=document.getElementById('dl-tbody');
+  if(tbody) tbody.innerHTML=monthBills.sort((a,b)=>a.date.localeCompare(b.date)).map(b=>{
+    tt+=+b.total||0;
+    if(b.payType==='sign') ts+=+b.total||0;
+    else tc+=+b.total||0;
+    ta+=+b.advance||0;
+    const payBadge=b.payType==='sign'?'<span class="badge badge-orange">簽單</span>':b.payType==='mixed'?'<span class="badge badge-gold">混合</span>':'<span class="badge badge-green">現金</span>';
+    const canEdit=['admin','accounting'].includes(currentRole);
+    return `<tr>
+      <td>${b.date}</td><td>${b.num||'-'}</td><td>${b.room||'-'}</td><td>${b.client||'-'}</td>
+      <td>$${(+b.total||0).toLocaleString()}${b.discount>0?'<span class="small text-red"> (-$'+(+b.discount).toLocaleString()+')</span>':''}</td>
+      <td>${payBadge}</td>
+      <td>${b.advance>0?'$'+(+b.advance).toLocaleString():'-'}</td>
+      <td style="white-space:nowrap">
+        ${canEdit?`<button class="btn btn-sm btn-outline" onclick="editBill(${b.id})">✏️</button>`:''}
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7" class="text-center small" style="padding:16px">本月尚無單據</td></tr>';
+
+  const tTotal=document.getElementById('dl-t-total');
+  const tSignCash=document.getElementById('dl-t-sign-cash');
+  const tAdv=document.getElementById('dl-t-advance');
+  if(tTotal) tTotal.textContent='$'+tt.toLocaleString();
+  if(tSignCash) tSignCash.innerHTML=`<span class="badge badge-orange">簽 $${ts.toLocaleString()}</span> <span class="badge badge-green">現 $${tc.toLocaleString()}</span>`;
+  if(tAdv) tAdv.textContent='$'+ta.toLocaleString();
+}
+
+function renderBillDetail(b){
+  const div=(label,val,opts={})=>{
+    const {indent=false,bold=false,red=false,green=false,orange=false,small=false,border=false}=opts;
+    const color=red?'color:var(--red)':green?'color:var(--green)':orange?'color:var(--orange)':'';
+    const pad=indent?'padding:2px 8px':'padding:4px 0';
+    const fw=bold?'font-weight:bold':'';
+    const fs=small?'font-size:11px':'font-size:12px';
+    const bt=border?'border-top:1px solid var(--milk3);margin-top:6px;padding-top:4px':'';
+    return `<div class="flex-between" style="${pad};${fw};${fs};${color};${bt}"><span>${label}</span><span>$${Number(val||0).toLocaleString()}</span></div>`;
+  };
+  const section=(title)=>`<div style="padding:3px 0;color:var(--text2);font-size:10px;letter-spacing:1px;border-top:1px solid var(--milk3);margin-top:6px;margin-bottom:2px">${title}</div>`;
+
+  let html='<div style="font-size:12px">';
+
+  // ── 包廂費 ──
+  html+=section('📋 基本費用');
+  html+=div('包廂費', b.roomFee||0);
+
+  // ── 檯費 ──
+  html+=section('👯 檯費明細');
+  if(b.tableFees&&b.tableFees.length){
+    b.tableFees.forEach(f=>{
+      const time=f.startTime&&f.endTime?` ${f.startTime}～${f.endTime}`:'';
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${f.name||'-'}${time}</span><span>$${(+f.fee||0).toLocaleString()}</span></div>`;
+    });
+    html+=div('檯費合計', b.tableFeeTotal||0, {bold:true});
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無檯費</div>`;
+    html+=div('檯費合計', 0, {bold:true});
+  }
+
+  // ── 酒水 ──
+  html+=section('🍾 酒水明細');
+  if(b.drinks&&b.drinks.length){
+    b.drinks.forEach(d=>{
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${d.vendor?'['+d.vendor+'] ':''}${d.item||'-'}</span><span>$${(+d.amount||0).toLocaleString()}</span></div>`;
+    });
+    html+=div('酒水合計', b.drinkTotal||0, {bold:true});
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無酒水</div>`;
+    html+=div('酒水合計', 0, {bold:true});
+  }
+
+  // ── 小菜 ──
+  html+=section('🥗 小菜明細');
+  if(b.foods&&b.foods.length){
+    b.foods.forEach(f=>{
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${f.item||'-'}</span><span>$${(+f.amount||0).toLocaleString()}</span></div>`;
+    });
+    html+=div('小菜合計', b.foodTotal||0, {bold:true});
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無小菜</div>`;
+    html+=div('小菜合計', 0, {bold:true});
+  }
+
+  // ── 招待酒水 ──
+  html+=section('🎁 招待酒水（不計入營業額）');
+  if(b.treats&&b.treats.length){
+    b.treats.forEach(t=>{
+      const typeLabel=t.treatType==='self'?'店內自飲':'招待客人';
+      html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>${t.vendor?'['+t.vendor+'] ':''}${t.item||'-'} <span class="badge ${t.treatType==='self'?'badge-gold':'badge-green'}">${typeLabel}</span></span><span style="color:var(--red)">$${(+t.amount||0).toLocaleString()}</span></div>`;
+    });
+    html+=`<div class="flex-between" style="padding:3px 0;font-size:11px;color:var(--red);font-weight:bold"><span>招待小計</span><span>$${(+b.treatTotal||0).toLocaleString()}</span></div>`;
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無招待</div>`;
+  }
+
+  // ── 現金借支 ──
+  html+=section('💵 現金借支');
+  const advNote=(b.payType==='sign'||b.payType==='mixed')?'（已計入簽單應收）':'（另外記錄，不影響營業額）';
+  html+=`<div class="flex-between" style="padding:3px 0;font-size:12px"><span>現金借支 <span style="font-size:10px;color:var(--text3)">${advNote}</span></span><span style="color:var(--red)">$${(+b.advance||0).toLocaleString()}</span></div>`;
+
+  // ── 沖銷/折扣 ──
+  html+=section('🔖 沖銷/折扣');
+  if(b.discount>0){
+    html+=`<div class="flex-between" style="padding:3px 0;font-size:12px;color:var(--red)"><span>沖銷${b.discountNote?' — '+b.discountNote:''}</span><span>－$${(+b.discount).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 0;font-size:11px;color:var(--text3)"><span>原始小計</span><span>$${(+b.totalOrig||+(b.total||0)+(+b.discount||0)).toLocaleString()}</span></div>`;
+  } else {
+    html+=`<div style="padding:2px 8px;font-size:11px;color:var(--text3)">無沖銷折扣</div>`;
+  }
+
+  // ── 結帳方式 ──
+  html+=section('💳 結帳方式');
+  if(b.payType==='cash'){
+    html+=`<div style="padding:3px 0;font-size:12px"><span class="badge badge-green">全額現金</span> <span style="margin-left:6px">$${(+b.total||0).toLocaleString()}</span></div>`;
+  } else if(b.payType==='sign'){
+    const signTotal=(+b.total||0)+(+b.advance||0);
+    html+=`<div style="padding:3px 0;font-size:12px"><span class="badge badge-orange">全額簽單</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>簽單金額</span><span style="color:var(--orange)">$${(+b.total||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>借支（應收）</span><span style="color:var(--red)">$${(+b.advance||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px;font-weight:bold"><span>簽單總應收</span><span style="color:var(--red)">$${signTotal.toLocaleString()}</span></div>`;
+  } else if(b.payType==='mixed'){
+    const signTotal=(+b.signAmt||0)+(+b.advance||0);
+    html+=`<div style="padding:3px 0;font-size:12px"><span class="badge badge-gold">現金＋簽單混合</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>現金</span><span class="text-green">$${(+b.cashAmt||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>簽單</span><span style="color:var(--orange)">$${(+b.signAmt||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px"><span>借支（計入簽單應收）</span><span style="color:var(--red)">$${(+b.advance||0).toLocaleString()}</span></div>`;
+    html+=`<div class="flex-between" style="padding:2px 8px;font-size:11px;font-weight:bold"><span>簽單總應收</span><span style="color:var(--red)">$${signTotal.toLocaleString()}</span></div>`;
+  }
+
+  // ── 營業額合計 ──
+  html+=`<div class="flex-between" style="padding:8px 0;font-weight:bold;font-size:14px;border-top:2px solid var(--brown3);margin-top:8px;color:var(--brown3)">
+    <span>營業額合計</span><span>$${(+b.total||0).toLocaleString()}</span>
+  </div>`;
+  if(b.note) html+=`<div style="color:var(--text3);font-size:11px;padding:3px 0;border-top:1px solid var(--milk3);margin-top:4px">📝 備註：${b.note}</div>`;
+  html+='</div>';
+  return html;
+}
+
+function toggleBillDetail(id){
+  const el=document.getElementById(`bill-detail-${id}`);
+  const arrow=document.getElementById(`arrow-${id}`);
+  if(el){
+    const isHidden=el.style.display==='none';
+    el.style.display=isHidden?'':'none';
+    if(arrow) arrow.textContent=isHidden?'▲':'▼';
+  }
+}
+
+function deleteBill(id){
+  if(!canWrite()){ alert('您的權限無法刪除'); return; }
+  if(!confirm('確認刪除此張單據？')) return;
+  const b=DB.daily.find(x=>x.id===id);
+  writeLog('刪除', `單據 ${b?b.num||'無號':''} $${b?(+b.total||0).toLocaleString():''}`);
+  DB.daily=DB.daily.filter(x=>x.id!==id);
+  scheduleSave();
+  renderDailyList();
+}
+
+function editBill(id){
+  if(!['admin','accounting'].includes(currentRole)){ alert('您的權限無法編輯'); return; }
+  const b=DB.daily.find(x=>x.id===id);
+  if(!b) return;
+
+  editType='bill'; editId=id;
+  document.getElementById('edit-modal-title').textContent='✏️ 編輯單據';
+  document.getElementById('edit-modal-body').innerHTML=`
+    <div class="form-row">
+      <div class="form-group"><label>單號</label><input type="text" id="ed-num" value="${b.num||''}"></div>
+      <div class="form-group"><label>包廂號</label><input type="text" id="ed-room" value="${b.room||''}"></div>
+    </div>
+    <div class="form-group"><label>客戶姓名</label><input type="text" id="ed-client" value="${b.client||''}"></div>
+    <div class="form-group"><label>包廂費</label><input type="number" id="ed-room-fee" value="${b.roomFee||0}"></div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">檯費明細（只能看，如需修改請刪除重建）</div>
+      ${(b.tableFees||[]).length ? (b.tableFees||[]).map(f=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${f.name||'-'} ${f.startTime?f.startTime+'～'+f.endTime:''}</span>
+          <span>$${(+f.fee||0).toLocaleString()}</span>
+        </div>`).join('') + `<div class="flex-between" style="font-size:11px;padding:3px 4px;font-weight:bold"><span>小計</span><span>$${(+b.tableFeeTotal||0).toLocaleString()}</span></div>`
+      : '<div style="font-size:11px;color:var(--text3)">無檯費</div>'}
+    </div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">酒水明細（只能看，如需修改請刪除重建）</div>
+      ${(b.drinks||[]).length ? (b.drinks||[]).map(d=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${d.vendor?'['+d.vendor+'] ':''}${d.item||'-'}</span>
+          <span>$${(+d.amount||0).toLocaleString()}</span>
+        </div>`).join('') + `<div class="flex-between" style="font-size:11px;padding:3px 4px;font-weight:bold"><span>小計</span><span>$${(+b.drinkTotal||0).toLocaleString()}</span></div>`
+      : '<div style="font-size:11px;color:var(--text3)">無酒水</div>'}
+    </div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">小菜明細（只能看，如需修改請刪除重建）</div>
+      ${(b.foods||[]).length ? (b.foods||[]).map(f=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${f.item||'-'}</span>
+          <span>$${(+f.amount||0).toLocaleString()}</span>
+        </div>`).join('') + `<div class="flex-between" style="font-size:11px;padding:3px 4px;font-weight:bold"><span>小計</span><span>$${(+b.foodTotal||0).toLocaleString()}</span></div>`
+      : '<div style="font-size:11px;color:var(--text3)">無小菜</div>'}
+    </div>
+
+    <div style="background:var(--milk2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:bold">招待酒水（只能看，如需修改請刪除重建）</div>
+      ${(b.treats||[]).length ? (b.treats||[]).map(t=>`
+        <div class="flex-between" style="font-size:11px;padding:2px 4px">
+          <span>${t.item||'-'} <span class="badge ${t.treatType==='self'?'badge-gold':'badge-green'}">${t.treatType==='self'?'自飲':'招待'}</span></span>
+          <span style="color:var(--red)">$${(+t.amount||0).toLocaleString()}</span>
+        </div>`).join('')
+      : '<div style="font-size:11px;color:var(--text3)">無招待</div>'}
+    </div>
+
+    <div class="form-group"><label>結帳方式</label>
+      <select id="ed-pay-type">
+        <option value="cash" ${b.payType==='cash'?'selected':''}>全額現金</option>
+        <option value="sign" ${b.payType==='sign'?'selected':''}>全額簽單</option>
+        <option value="mixed" ${b.payType==='mixed'?'selected':''}>現金＋簽單混合</option>
+      </select>
+    </div>
+    ${b.payType==='mixed'?`
+    <div class="form-row">
+      <div class="form-group"><label>現金金額</label><input type="number" id="ed-cash-amt" value="${b.cashAmt||0}"></div>
+      <div class="form-group"><label>簽單金額</label><input type="number" id="ed-sign-amt" value="${b.signAmt||0}"></div>
+    </div>`:''}
+    <div class="form-row">
+      <div class="form-group"><label>沖銷/折扣金額</label><input type="number" id="ed-discount" value="${b.discount||0}"></div>
+      <div class="form-group"><label>折扣說明</label><input type="text" id="ed-discount-note" value="${b.discountNote||''}"></div>
+    </div>
+    <div class="form-group"><label>現金借支</label><input type="number" id="ed-advance" value="${b.advance||0}"></div>
+    <div class="form-group"><label>備註</label><input type="text" id="ed-note" value="${b.note||''}"></div>`;
+  openEditModal();
+}
+
+
+
+function deleteDaily(id){ if(!canWrite()){alert('您的權限無法刪除');return;} if(!confirm('確認刪除此筆紀錄？'))return;
+  const r=DB.daily.find(x=>x.id===id);
+  writeLog('刪除', `每日營業 ${r?r.date:''} 總額 $${r?Number(r.total).toLocaleString():''}`);
+  DB.daily=DB.daily.filter(r=>r.id!==id); scheduleSave(); renderDailyList(); }
+
+/* ════════════════════════════════════════
+   📦 進貨紀錄
+════════════════════════════════════════ */
+let puTab='A';
+function setPurchaseTab(t){
+  puTab=t;
+  document.querySelectorAll('#page-purchase .section-tab').forEach((b,i)=>b.classList.toggle('active',['A','B','C','summary'][i]===t));
+  document.getElementById('pu-form').style.display=t==='summary'?'none':'';
+  document.getElementById('pu-list-card').style.display=t==='summary'?'none':'';
+  document.getElementById('pu-summary-card').classList.toggle('hidden',t!=='summary');
+  const names={A:'A 酒水',B:'B 雜支',C:'C 食材'};
+  if(t!=='summary'){
+    document.getElementById('pu-form-title').textContent='新增 '+names[t]+' 進貨';
+    document.getElementById('pu-list-title').textContent='本月 '+names[t]+' 紀錄';
+    renderVendors(); renderPurchase();
+  } else renderPurchaseSummary();
+}
+function renderVendors(){
+  const sel=document.getElementById('pu-vendor');
+  sel.innerHTML='<option value="">選擇廠商</option>'+(DB.vendors[puTab]||[]).map(v=>`<option value="${v}">${v}</option>`).join('')+'<option value="__other__">＋ 新增廠商</option>';
+}
+function checkVendorOther(){ document.getElementById('pu-vendor-other-row').classList.toggle('hidden',document.getElementById('pu-vendor').value!=='__other__'); }
+function addPurchase(){
+  if(!getPerms().purchaseAdd){ alert('您的權限無法新增進貨紀錄'); return; }
+  const date=document.getElementById('pu-date').value;
+  let vendor=document.getElementById('pu-vendor').value;
+  if(vendor==='__other__'){
+    vendor=document.getElementById('pu-vendor-other').value.trim();
+    if(!vendor){ alert('請輸入廠商名稱'); return; }
+    if(!DB.vendors[puTab].includes(vendor)) DB.vendors[puTab].push(vendor);
+    document.getElementById('pu-vendor-other').value='';
+    document.getElementById('pu-vendor-other-row').classList.add('hidden');
+    renderVendors();
+  }
+  const item=document.getElementById('pu-item').value;
+  const amount=+document.getElementById('pu-amount').value||0;
+  const note=document.getElementById('pu-note').value;
+  if(!date||!vendor||amount<=0){ alert('請填寫日期、廠商和金額'); return; }
+  DB.purchases.push({id:Date.now(),date,category:puTab,vendor,item,amount,note});
+  writeLog('新增', `進貨 ${puTab} 類 ${vendor} ${item} $${amount.toLocaleString()}`);
+  scheduleSave();
+  ['pu-item','pu-amount','pu-note'].forEach(id=>document.getElementById(id).value='');
+  renderPurchase();
+}
+function renderPurchase(){
+  const year=+document.getElementById('pu-year').value;
+  const month=+document.getElementById('pu-month').value;
+  const rows=DB.purchases.filter(r=>{const d=new Date(r.date);return r.category===puTab&&d.getFullYear()===year&&d.getMonth()+1===month;}).sort((a,b)=>a.date.localeCompare(b.date));
+  let ta=0;
+  document.getElementById('pu-tbody').innerHTML=rows.map(r=>{ta+=+r.amount||0;
+    const canEditP=['admin','accounting'].includes(currentRole);
+    const editBtnP=canEditP?'<button class="btn btn-sm btn-outline" onclick="editPurchase('+r.id+')">✏️</button> ':'';
+    const delBtnP=canEditP?'<button class="btn btn-sm btn-danger" onclick="deletePurchase('+r.id+')">刪</button>':'<span class="small">-</span>';
+    return '<tr><td>'+r.date+'</td><td>'+r.vendor+'</td><td>'+(r.item||'-')+'</td><td>$'+fmt(r.amount)+'</td><td>'+(r.note||'')+'</td><td style="white-space:nowrap">'+editBtnP+delBtnP+'</td></tr>';
+  }).join('')||'<tr><td colspan="6" class="text-center small" style="padding:16px">本月尚無進貨紀錄</td></tr>';
+  document.getElementById('pu-t-amount').textContent='$'+fmt(ta);
+}
+function deletePurchase(id){ if(!canWrite()){alert('您的權限無法刪除');return;} if(!confirm('確認刪除？'))return;
+  const r=DB.purchases.find(x=>x.id===id);
+  writeLog('刪除', `進貨 ${r?r.category:''} 類 ${r?r.vendor:''} $${r?Number(r.amount).toLocaleString():''}`);
+  DB.purchases=DB.purchases.filter(r=>r.id!==id); scheduleSave(); renderPurchase(); }
+function renderPurchaseSummary(){
+  const year=+document.getElementById('pu-sum-year').value;
+  const month=+document.getElementById('pu-sum-month').value;
+  const filtered=DB.purchases.filter(r=>{const d=new Date(r.date);return month?(d.getFullYear()===year&&d.getMonth()+1===month):d.getFullYear()===year;});
+  let html='',grand=0;
+  [{cat:'A',name:'A 酒水'},{cat:'B',name:'B 雜支'},{cat:'C',name:'C 食材'}].forEach(({cat,name})=>{
+    const rows=filtered.filter(r=>r.category===cat);
+    const catTotal=rows.reduce((s,r)=>s+(+r.amount||0),0); grand+=catTotal;
+    const vendors={};
+    rows.forEach(r=>{vendors[r.vendor]=(vendors[r.vendor]||0)+(+r.amount||0);});
+    html+=`<div style="margin-bottom:14px">
+      <div class="flex-between" style="background:var(--milk2);padding:8px 12px;border-radius:var(--radius-sm);margin-bottom:6px">
+        <strong>${name}</strong><span class="text-gold bold">$${fmt(catTotal)}</span>
+      </div>
+      ${Object.entries(vendors).length?Object.entries(vendors).map(([v,a])=>`<div class="flex-between" style="padding:4px 12px;font-size:12px;color:var(--text2)"><span>└ ${v}</span><span>$${fmt(a)}</span></div>`).join(''):'<div class="small" style="padding:4px 12px">（無紀錄）</div>'}
+    </div>`;
+  });
+  html+=`<div class="flex-between" style="background:var(--brown3);padding:12px 14px;border-radius:var(--radius-sm);color:var(--gold);margin-top:8px">
+    <strong style="font-size:14px">A ＋ B ＋ C 總計</strong><strong style="font-size:18px">$${fmt(grand)}</strong>
+  </div>`;
+  document.getElementById('pu-summary-content').innerHTML=html;
+}
+
+/* ════════════════════════════════════════
+   👥 人事薪資
+════════════════════════════════════════ */
+let prTab='A';
+function setPayrollTab(t){ prTab=t; document.querySelectorAll('#page-payroll .section-tab').forEach((b,i)=>b.classList.toggle('active',['A','B','C','D','E','summary'][i]===t)); renderPayroll(); }
+function prKey(){ return ym(document.getElementById('pr-year').value, document.getElementById('pr-month').value); }
+function ensurePayroll(k){ if(!DB.payroll[k]) DB.payroll[k]={A:[],B:[],C:[],D:[],E:[]}; }
+function calcPayrollTotal(k){
+  ensurePayroll(k); const d=DB.payroll[k];
+  const a=d.A.reduce((s,p)=>s+(+p.daily||0)*(+p.days||0),0);
+  const b=d.B.reduce((s,p)=>s+(+p.salary||0),0);
+  const c=d.C.reduce((s,p)=>s+(+p.bonus||0)*(+p.tables||0),0);
+  const dd=d.D.reduce((s,p)=>s+(+p.amount||0),0);
+  const e=d.E.reduce((s,p)=>s+(+p.amount||0),0);
+  return{a,b,c,d:dd,e,total:a+b+c+dd+e};
+}
+function renderPayroll(){
+  const k=prKey(); ensurePayroll(k); const d=DB.payroll[k];
+  const c=document.getElementById('pr-content');
+  if(prTab==='A'){
+    let total=0; d.A.forEach(p=>{p.salary=(+p.daily||0)*(+p.days||0); total+=p.salary;});
+    c.innerHTML=`<div class="card"><div class="card-title">A 日薪人員</div>
+      ${d.A.map((p,i)=>`<div class="form-row-3" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('A',${i},'name',this.value)"></div>
+        <div><label>日薪</label><input type="number" value="${p.daily||''}" onchange="updPR('A',${i},'daily',this.value)"></div>
+        <div><label>天數</label><input type="number" value="${p.days||''}" onchange="updPR('A',${i},'days',this.value)"></div>
+        <div style="grid-column:span 2"><label>本月薪資</label><input value="$${fmt(p.salary||0)}" readonly style="background:var(--milk2)"></div>
+        <div><label>&nbsp;</label><button class="btn btn-sm btn-danger" onclick="removeP('A',${i})">刪除</button></div>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPA()">＋ 新增日薪人員</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>日薪合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='B'){
+    let total=0; d.B.forEach(p=>total+=(+p.salary||0));
+    c.innerHTML=`<div class="card"><div class="card-title">B 月薪人員</div>
+      ${d.B.map((p,i)=>`<div class="form-row" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('B',${i},'name',this.value)"></div>
+        <div><label>月薪</label><input type="number" value="${p.salary||''}" onchange="updPR('B',${i},'salary',this.value)"></div>
+        <button class="btn btn-sm btn-danger" onclick="removeP('B',${i})">刪除</button>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPB()">＋ 新增月薪人員</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>月薪合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='C'){
+    let total=0; d.C.forEach(p=>{p.amount=(+p.bonus||0)*(+p.tables||0); total+=p.amount;});
+    c.innerHTML=`<div class="card"><div class="card-title">C 訂台獎金</div>
+      ${d.C.map((p,i)=>`<div class="form-row-3" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('C',${i},'name',this.value)"></div>
+        <div><label>每桌獎金</label><input type="number" value="${p.bonus||''}" onchange="updPR('C',${i},'bonus',this.value)"></div>
+        <div><label>桌數</label><input type="number" value="${p.tables||''}" onchange="updPR('C',${i},'tables',this.value)"></div>
+        <div style="grid-column:span 2"><label>金額</label><input value="$${fmt(p.amount||0)}" readonly style="background:var(--milk2)"></div>
+        <div><label>&nbsp;</label><button class="btn btn-sm btn-danger" onclick="removeP('C',${i})">刪除</button></div>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPI('C',{name:'',bonus:0,tables:0})">＋ 新增</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>訂台獎金合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='D'){
+    let total=0; d.D.forEach(p=>total+=(+p.amount||0));
+    c.innerHTML=`<div class="card"><div class="card-title">D 介紹費</div>
+      ${d.D.map((p,i)=>`<div class="form-row" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('D',${i},'name',this.value)"></div>
+        <div><label>介紹費</label><input type="number" value="${p.amount||''}" onchange="updPR('D',${i},'amount',this.value)"></div>
+        <button class="btn btn-sm btn-danger" onclick="removeP('D',${i})">刪除</button>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPI('D',{name:'',amount:0})">＋ 新增</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>介紹費合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else if(prTab==='E'){
+    let total=0; d.E.forEach(p=>total+=(+p.amount||0));
+    c.innerHTML=`<div class="card"><div class="card-title">E 機票補助</div>
+      ${d.E.map((p,i)=>`<div class="form-row" style="align-items:flex-end;margin-bottom:8px">
+        <div><label>姓名</label><input value="${p.name||''}" onchange="updPR('E',${i},'name',this.value)"></div>
+        <div><label>補助金額</label><input type="number" value="${p.amount||''}" onchange="updPR('E',${i},'amount',this.value)"></div>
+        <button class="btn btn-sm btn-danger" onclick="removeP('E',${i})">刪除</button>
+      </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="addPI('E',{name:'',amount:0})">＋ 新增</button>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--milk2);border-radius:var(--radius-sm)" class="flex-between">
+        <strong>機票補助合計</strong><strong class="text-gold">$${fmt(total)}</strong>
+      </div></div>`;
+  } else {
+    const t=calcPayrollTotal(k);
+    c.innerHTML=`<div class="card"><div class="card-title">薪資匯總</div>
+      <table><thead><tr><th>姓名</th><th>類型</th><th>金額</th></tr></thead><tbody>
+        ${d.A.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-gold">日薪</span></td><td>$${fmt((+p.daily||0)*(+p.days||0))}</td></tr>`).join('')}
+        ${d.B.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-orange">月薪</span></td><td>$${fmt(p.salary||0)}</td></tr>`).join('')}
+        ${d.C.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-green">訂台</span></td><td>$${fmt((+p.bonus||0)*(+p.tables||0))}</td></tr>`).join('')}
+        ${d.D.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-red">介紹費</span></td><td>$${fmt(p.amount||0)}</td></tr>`).join('')}
+        ${d.E.map(p=>`<tr><td>${p.name||'-'}</td><td><span class="badge badge-gold">機票</span></td><td>$${fmt(p.amount||0)}</td></tr>`).join('')}
+      </tbody>
+      <tfoot><tr class="tfoot"><td colspan="2">薪資總額</td><td>$${fmt(t.total)}</td></tr></tfoot></table>
+    </div>`;
+  }
+}
+function updPR(t,i,f,v){ if(!getPerms().payrollEdit){alert('您的權限無法修改薪資');return;}
+  const k=prKey(); DB.payroll[k][t][i][f]=v;
+  writeLog('修改', `人事薪資 ${k} ${t}類 欄位${f}=${v}`);
+  scheduleSave(); renderPayroll(); }
+function removeP(t,i){ const k=prKey(); DB.payroll[k][t].splice(i,1); scheduleSave(); renderPayroll(); }
+function addPA(){ const k=prKey(); DB.payroll[k].A.push({name:'',daily:0,days:0}); scheduleSave(); renderPayroll(); }
+function addPB(){ const k=prKey(); DB.payroll[k].B.push({name:'',salary:0}); scheduleSave(); renderPayroll(); }
+function addPI(t,obj){ const k=prKey(); DB.payroll[k][t].push({...obj}); scheduleSave(); renderPayroll(); }
+
+/* ════════════════════════════════════════
+   📈 月度結算
+════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   📈 月度結算（重新設計版）
+   全部從每日資料自動加總
+════════════════════════════════════════ */
+function moKey(){ return ym(document.getElementById('mo-year').value, document.getElementById('mo-month').value); }
+
+function renderMonthly(){
+  try{
+  const k=moKey(); const{y,m}=parseYM(k);
+
+  // ── 月營業資料 ──
+  const bills=(DB.daily||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
+  const revenue=bills.reduce((s,r)=>s+(+r.total||0),0);
+  const cashRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
+  const signRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
+  const billCount=bills.length;
+  const workDays=[...new Set(bills.map(r=>r.date))].length;
+  const avgDaily=workDays>0?Math.round(revenue/workDays):0;
+  const discountTotal=bills.reduce((s,r)=>s+(+r.discount||0),0);
+  const advanceTotal=bills.reduce((s,r)=>s+(+r.advance||0),0);
+  const treatTotal=bills.reduce((s,r)=>s+(+r.treatTotal||0),0);
+
+  // ── 月進貨資料 ──
+  const purchases=(DB.purchases||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
+  const puA=purchases.filter(r=>r.category==='A').reduce((s,r)=>s+(+r.amount||0),0);
+  const puB=purchases.filter(r=>r.category==='B').reduce((s,r)=>s+(+r.amount||0),0);
+  const puC=purchases.filter(r=>r.category==='C').reduce((s,r)=>s+(+r.amount||0),0);
+  const purchaseTotal=puA+puB+puC;
+
+  // ── 月人事資料 ──
+  const payrolls=(DB.dailyPayroll||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
+  const prTypes={daily:0,table:0,intro:0,ticket:0,monthly:0};
+  payrolls.forEach(r=>{ if(prTypes[r.type]!==undefined) prTypes[r.type]+=(+r.amount||0); else prTypes[r.type]=+r.amount||0; });
+  const payrollTotal=payrolls.reduce((s,r)=>s+(+r.amount||0),0);
+
+  // ── 月其他支出 ──
+  const expenses=(DB.dailyExpenses||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
+  const expByName={};
+  expenses.forEach(r=>{ expByName[r.name]=(expByName[r.name]||0)+(+r.amount||0); });
+  const expenseTotal=expenses.reduce((s,r)=>s+(+r.amount||0),0);
+
+  // ── 損益 ──
+  const totalExp=purchaseTotal+payrollTotal+expenseTotal;
+  const netProfit=revenue-totalExp;
+
+  // ── Render Stats ──
+  // ── 月簽單收款（從簽單管理自動抓）──
+  const moSignCollect=(DB.signBills||[]).reduce((s,b)=>
+    s+(b.payments||[]).filter(p=>{const d=new Date(p.date);return d.getFullYear()===y&&d.getMonth()+1===m;})
+    .reduce((ss,p)=>ss+(+p.amount||0),0),0);
+
+  // ── 月現金借支（按結帳類型分）──
+  const bills2=(DB.daily||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
+  const moCashAdvance=bills2.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
+  const moSignAdvance=bills2.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
+
+  // ── 月帳上現金 ──
+  const moActualCash=cashRev + moSignCollect - (purchaseTotal+payrollTotal+expenseTotal) - moCashAdvance - moSignAdvance; // 簽單借支現金已付出
+
+  document.getElementById('mo-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">月營業額</div><div class="stat-value">$${fmt(revenue)}</div><div class="stat-sub">${workDays}天 ${billCount}張單</div></div>
+    <div class="stat-card"><div class="stat-label">月總支出</div><div class="stat-value red">$${fmt(totalExp)}</div></div>
+    <div class="stat-card"><div class="stat-label">月淨利</div><div class="stat-value ${netProfit>=0?'green':'red'}">${netProfit>=0?'+':''} $${fmt(netProfit)}</div></div>
+    <div class="stat-card"><div class="stat-label">月帳上現金</div><div class="stat-value ${moActualCash>=0?'green':'red'}">$${fmt(moActualCash)}</div><div class="stat-sub">含簽單還款</div></div>
+    <div class="stat-card"><div class="stat-label">簽單金額</div><div class="stat-value">$${fmt(signRev)}</div></div>
+    <div class="stat-card"><div class="stat-label">平均每日</div><div class="stat-value">$${fmt(avgDaily)}</div></div>`;
+
+  // ── Revenue Detail ──
+  document.getElementById('mo-revenue-detail').innerHTML=`
+    <div class="flex-between" style="padding:5px 0"><span>總營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 現金營業收入</span><span class="text-green">$${fmt(cashRev)}</span></div>
+    <div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--text2)"><span>└ 簽單營業收入</span><span style="color:var(--orange)">$${fmt(signRev)}</span></div>
+    ${discountTotal>0?`<div class="flex-between" style="padding:3px 0 3px 12px;font-size:12px;color:var(--red)"><span>└ 沖銷/折扣合計</span><span>-$${fmt(discountTotal)}</span></div>`:''}
+    <hr class="divider">
+    <div class="flex-between" style="padding:5px 0;font-weight:bold"><span>💵 月帳上現金</span><span class="${moActualCash>=0?'text-green':'text-red'}">$${fmt(moActualCash)}</span></div>
+    <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金營業</span><span>$${fmt(cashRev)}</span></div>
+    ${moSignCollect>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 本月收到簽單還款</span><span class="text-green">＋$${fmt(moSignCollect)}</span></div>`:''}
+    <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金支出（進貨+人事+其他）</span><span class="text-red">－$${fmt(purchaseTotal+payrollTotal+expenseTotal)}</span></div>
+    ${moCashAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 現金借支（現金單）</span><span class="text-red">－$${fmt(moCashAdvance)}</span></div>`:''}
+    ${moSignAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 簽單借支（現金已付出）</span><span class="text-red">－$${fmt(moSignAdvance)}</span></div>`:''}
+    <hr class="divider">
+    <div class="flex-between" style="padding:5px 0"><span>工作天數</span><span>${workDays} 天</span></div>
+    <div class="flex-between" style="padding:5px 0"><span>平均每日營業額</span><span>$${fmt(avgDaily)} / 天</span></div>`;
+
+  // ── Purchase Detail ──
+  // By vendor
+  const vendorStats={A:{},B:{},C:{}};
+  purchases.forEach(r=>{ if(!vendorStats[r.category]) vendorStats[r.category]={}; vendorStats[r.category][r.vendor]=(vendorStats[r.category][r.vendor]||0)+(+r.amount||0); });
+  let puHtml=`
+    <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);margin-bottom:4px"><span><strong>A 酒水</strong></span><span class="text-gold bold">$${fmt(puA)}</span></div>
+    ${Object.entries(vendorStats.A||{}).map(([v,a])=>`<div class="flex-between" style="padding:2px 12px;font-size:12px;color:var(--text2)"><span>└ ${v}</span><span>$${fmt(a)}</span></div>`).join('')}
+    <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);margin:4px 0"><span><strong>B 雜支</strong></span><span class="text-gold bold">$${fmt(puB)}</span></div>
+    ${Object.entries(vendorStats.B||{}).map(([v,a])=>`<div class="flex-between" style="padding:2px 12px;font-size:12px;color:var(--text2)"><span>└ ${v}</span><span>$${fmt(a)}</span></div>`).join('')}
+    <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);margin-top:4px"><span><strong>C 食材</strong></span><span class="text-gold bold">$${fmt(puC)}</span></div>
+    ${Object.entries(vendorStats.C||{}).map(([v,a])=>`<div class="flex-between" style="padding:2px 12px;font-size:12px;color:var(--text2)"><span>└ ${v}</span><span>$${fmt(a)}</span></div>`).join('')}
+    <div class="flex-between" style="padding:8px 10px;background:var(--brown3);border-radius:var(--radius-sm);color:var(--gold);margin-top:6px"><strong>A+B+C 總計</strong><strong>$${fmt(purchaseTotal)}</strong></div>`;
+  document.getElementById('mo-purchase-detail').innerHTML=purchaseTotal>0?puHtml:'<div class="small" style="padding:8px 0;color:var(--text3)">本月無進貨紀錄</div>';
+
+  // ── Payroll Detail ──
+  const typeNames={daily:'日薪/陪侍',table:'訂台獎金',intro:'介紹費',ticket:'機票補助',monthly:'月薪'};
+  const typeBadges={daily:'badge-gold',table:'badge-green',intro:'badge-orange',ticket:'badge-red',monthly:'badge-gold'};
+  let prHtml='';
+  // Group by type then show individuals
+  ['daily','table','intro','ticket','monthly'].forEach(t=>{
+    const tRows=payrolls.filter(r=>r.type===t);
+    if(!tRows.length) return;
+    const tTotal=tRows.reduce((s,r)=>s+(+r.amount||0),0);
+    prHtml+=`<div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);margin-bottom:4px"><span><strong>${typeNames[t]}</strong></span><span class="text-gold bold">$${fmt(tTotal)}</span></div>`;
+    // Individual entries
+    const nameGroups={};
+    tRows.forEach(r=>{ if(!nameGroups[r.name]) nameGroups[r.name]={total:0,notes:[]}; nameGroups[r.name].total+=(+r.amount||0); if(r.note) nameGroups[r.name].notes.push(r.note); });
+    Object.entries(nameGroups).forEach(([name,data])=>{
+      prHtml+=`<div class="flex-between" style="padding:2px 12px;font-size:12px;color:var(--text2)"><span>└ ${name}${data.notes.length?' ('+data.notes.join('/')+')'  :''}</span><span>$${fmt(data.total)}</span></div>`;
+    });
+  });
+  prHtml+=`<div class="flex-between" style="padding:8px 10px;background:var(--brown3);border-radius:var(--radius-sm);color:var(--gold);margin-top:6px"><strong>人事總計</strong><strong>$${fmt(payrollTotal)}</strong></div>`;
+  document.getElementById('mo-payroll-detail').innerHTML=payrollTotal>0?prHtml:'<div class="small" style="padding:8px 0;color:var(--text3)">本月無人事支出</div>';
+
+  // ── Expense Detail ──
+  let expHtml=Object.entries(expByName).map(([name,amt])=>`
+    <div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--milk2)"><span>${name}</span><span class="text-red">$${fmt(amt)}</span></div>`).join('');
+  expHtml+=`<div class="flex-between" style="padding:8px 0;font-weight:bold"><span>其他支出總計</span><span class="text-red">$${fmt(expenseTotal)}</span></div>`;
+  document.getElementById('mo-expense-detail').innerHTML=expenseTotal>0?expHtml:'<div class="small" style="padding:8px 0;color:var(--text3)">本月無其他支出</div>';
+
+  // ── Treat Detail ──
+  const treatByType={guest:0,self:0};
+  bills.forEach(b=>(b.treats||[]).forEach(t=>{ treatByType[t.treatType]=(treatByType[t.treatType]||0)+(+t.amount||0); }));
+  document.getElementById('mo-treat-detail').innerHTML=treatTotal>0?`
+    <div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--milk2)"><span>招待客人</span><span class="text-red">$${fmt(treatByType.guest||0)}</span></div>
+    <div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--milk2)"><span>店內自飲</span><span class="text-red">$${fmt(treatByType.self||0)}</span></div>
+    <div class="flex-between" style="padding:8px 0;font-weight:bold"><span>招待總計</span><span class="text-red">$${fmt(treatTotal)}</span></div>`
+    :'<div class="small" style="padding:8px 0;color:var(--text3)">本月無招待記錄</div>';
+
+  // ── PNL Detail ──
+  document.getElementById('mo-pnl-detail').innerHTML=`
+    <div class="flex-between" style="padding:5px 0"><span>月總營業額</span><span class="text-gold bold">$${fmt(revenue)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>進貨成本（A+B+C）</span><span>－$${fmt(purchaseTotal)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>人事支出</span><span>－$${fmt(payrollTotal)}</span></div>
+    <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>其他支出</span><span>－$${fmt(expenseTotal)}</span></div>
+    <hr class="divider">
+    <div class="flex-between" style="padding:5px 0;font-size:11px;color:var(--text3)"><span>招待酒水成本（參考）</span><span>$${fmt(treatTotal)}</span></div>
+    <div class="flex-between" style="padding:10px 0;font-size:16px;font-weight:bold;border-top:2px solid var(--milk3);margin-top:6px">
+      <span>月淨利</span>
+      <span class="${netProfit>=0?'text-green':'text-red'}">${netProfit>=0?'＋':'－'} $${fmt(Math.abs(netProfit))}</span>
+    </div>
+    <div class="flex-between small"><span>平均每日營業額</span><span>$${fmt(avgDaily)} / 天</span></div>`;
+
+  // ── Analysis ──
+  const prRatio=revenue>0?Math.round(payrollTotal/revenue*100):0;
+  const puRatio=revenue>0?Math.round(purchaseTotal/revenue*100):0;
+  const cashRatio=revenue>0?Math.round(cashRev/revenue*100):0;
+  const signRatio=revenue>0?Math.round(signRev/revenue*100):0;
+  const prS=prRatio<35?{cls:'alert-green',txt:'優良 ✓',msg:`人事佔比 ${prRatio}%，控制良好`}:prRatio<50?{cls:'alert-orange',txt:'尚可 ⚠',msg:`人事佔比 ${prRatio}%，偏高`}:{cls:'alert-red',txt:'欠佳 ✕',msg:`人事佔比 ${prRatio}%，過高需檢討`};
+  const puS=puRatio<30?{cls:'alert-green',txt:'優良 ✓',msg:`進貨佔比 ${puRatio}%，良好`}:puRatio<45?{cls:'alert-orange',txt:'尚可 ⚠',msg:`進貨佔比 ${puRatio}%，偏高`}:{cls:'alert-red',txt:'欠佳 ✕',msg:`進貨佔比 ${puRatio}%，過高`};
+  document.getElementById('mo-analysis').innerHTML=`
+    <div style="margin-bottom:14px">
+      <div class="flex-between small mb8"><span>💵 現金收入佔比</span><span class="badge badge-green">${cashRatio}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(cashRatio,100)}%;background:var(--green)"></div></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">現金 $${fmt(cashRev)} ／ 總營業額 $${fmt(revenue)}</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="flex-between small mb8"><span>✍️ 簽單收入佔比</span><span class="badge ${signRatio>50?'badge-red':signRatio>30?'badge-orange':'badge-gold'}">${signRatio}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(signRatio,100)}%;background:${signRatio>50?'var(--red)':signRatio>30?'var(--orange)':'var(--gold2)'}"></div></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">簽單 $${fmt(signRev)} ／ 總營業額 $${fmt(revenue)}</div>
+      ${signRatio>50?'<div class="alert alert-red" style="margin-top:6px">⚠ 簽單佔比超過50%，應收帳款偏高，注意追收</div>':signRatio>30?'<div class="alert alert-orange" style="margin-top:6px">注意簽單佔比，持續追蹤應收款項</div>':''}
+    </div>
+    <div style="margin-bottom:14px"><div class="flex-between small mb8"><span>👥 人事佔比</span><span class="badge ${prS.cls}">${prS.txt}</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(prRatio,100)}%;background:${prRatio<35?'var(--green)':prRatio<50?'var(--orange)':'var(--red)'}"></div></div>
+    <div class="alert ${prS.cls}" style="margin-top:6px">${prS.msg}</div></div>
+    <div><div class="flex-between small mb8"><span>📦 進貨佔比</span><span class="badge ${puS.cls}">${puS.txt}</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(puRatio,100)}%;background:${puRatio<30?'var(--green)':puRatio<45?'var(--orange)':'var(--red)'}"></div></div>
+    <div class="alert ${puS.cls}" style="margin-top:6px">${puS.msg}</div></div>`;
+
+  // ── Sign Bill Monthly Stats ──
+  const signBills=DB.signBills||[];
+  // New sign bills opened this month (amount = signAmt + advanceAmt)
+  const moSignBills=signBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const moSignTotal=moSignBills.reduce((s,b)=>s+(+b.amount||0),0);
+  const moSignOnly=moSignBills.reduce((s,b)=>s+(+b.signAmt||+b.amount||0),0);
+  const moSBAdvance=moSignBills.reduce((s,b)=>s+(+b.advanceAmt||0),0);
+  // Collections received this month (regardless of which month bill was opened)
+  const moCollectTotal=signBills.reduce((s,b)=>s+(b.payments||[]).filter(p=>{
+    const d=new Date(p.date);return d.getFullYear()===y&&d.getMonth()+1===m;
+  }).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+  const moSignUnpaid=moSignBills.reduce((s,b)=>s+getSignBillRemaining(b),0);
+
+  // Append sign bill stats to revenue detail
+  const revEl=document.getElementById('mo-revenue-detail');
+  if(revEl && moSignTotal>0){
+    revEl.innerHTML+=`
+      <hr class="divider">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:bold">本月簽單應收明細</div>
+      <div class="flex-between" style="padding:3px 0"><span>本月新開簽單（含借支）</span><span style="color:var(--orange);font-weight:bold">$${fmt(moSignTotal)}</span></div>
+      ${moSBAdvance>0?`<div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中簽單金額</span><span>$${fmt(moSignOnly)}</span></div>
+      <div class="flex-between" style="padding:2px 0 2px 12px;font-size:11px;color:var(--text2)"><span>└ 其中現金借支</span><span>$${fmt(moSBAdvance)}</span></div>`:''}
+      <div class="flex-between" style="padding:3px 0"><span>本月實收簽單款</span><span class="text-green">$${fmt(moCollectTotal)}</span></div>
+      <div class="flex-between" style="padding:3px 0"><span>本月未收簽單</span><span class="${moSignUnpaid>0?'text-red':'text-green'}">$${fmt(moSignUnpaid)}</span></div>`;
+  }
+
+  // Save monthly snapshot to DB for report
+  if(!DB.monthly) DB.monthly={};
+  DB.monthly[k]={
+    revenue, cashRev, signRev, workDays, billCount, avgDaily,
+    purchaseTotal, puA, puB, puC,
+    payrollTotal, prTypes,
+    expenseTotal, expByName,
+    treatTotal, discountTotal, advanceTotal,
+    totalExp, netProfit,
+    moSignTotal, moSignOnly, moSignAdvance, moCollectTotal, moSignUnpaid,
+    updatedAt: Date.now()
+  };
+  } catch(err){ console.error('renderMonthly ERROR:', err.message, err); alert('月度結算錯誤: '+err.message); }
+}
+
+async function saveMonthly(){
+  const k=moKey(); const{y,m}=parseYM(k);
+  renderMonthly(); // recalc before save
+  await saveDB();
+  alert(`✅ ${y}年${m}月結算報告已儲存至雲端！`);
+  writeLog('儲存',`${y}年${m}月 月度結算報告`);
+}
+
+
+/* ════════════════════════════════════════
+   ✍️ 簽單管理
+════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   ✍️ 簽單管理系統（應收帳款制）
+   - 簽單算營業額，還款日才算現金入帳
+   - 支援多次還款、跨月收款
+   - 逾期30天提醒
+════════════════════════════════════════ */
+
+/* ── Schema ──
+DB.signBills = [{
+  id, date, num, client, room, amount,
+  source,  // 'bill'=從營業單產生, 'manual'=手動新增
+  note,
+  payments: [{ id, date, amount, discount, note }]
+}]
+DB.sgSettings = { overdueDays: 30 }
+*/
+
+function getSgSettings(){
+  return DB.sgSettings || { overdueDays: 30 };
+}
+
+function getSignBillStatus(bill){
+  const paid = (bill.payments||[]).reduce((s,p)=>s+(+p.amount||0),0);
+  const disc = (bill.payments||[]).reduce((s,p)=>s+(+p.discount||0),0);
+  const remaining = (+bill.amount||0) - paid - disc;
+  if(remaining <= 0) return 'paid';
+  if(paid > 0) return 'partial';
+  return 'unpaid';
+}
+
+function getSignBillRemaining(bill){
+  const paid = (bill.payments||[]).reduce((s,p)=>s+(+p.amount||0),0);
+  const disc = (bill.payments||[]).reduce((s,p)=>s+(+p.discount||0),0);
+  return Math.max(0, (+bill.amount||0) - paid - disc);
+}
+
+function isOverdue(bill){
+  if(getSignBillStatus(bill) === 'paid') return false;
+  const days = getSgSettings().overdueDays || 30;
+  const billDate = new Date(bill.date);
+  const now = new Date();
+  return (now - billDate) / (1000*60*60*24) > days;
+}
+
+// Called when a bill is saved with payType sign or mixed
+function createSignBillFromBill(b){
+  if(!DB.signBills) DB.signBills = [];
+  const signAmt = b.payType==='sign' ? +b.total||0 : +b.signAmt||0;
+  if(signAmt <= 0) return;
+  // Check if already exists
+  if(DB.signBills.find(x=>x.sourceId===b.id)) return;
+  DB.signBills.push({
+    id: Date.now() + Math.random(),
+    date: b.date,
+    num: b.num || '',
+    client: b.client || '',
+    room: b.room || '',
+    amount: signAmt,
+    source: 'bill',
+    sourceId: b.id,
+    note: b.note || '',
+    payments: []
+  });
+}
+
+/* ── Tab Management ── */
+let sgTab = 'clients';
+function setSgTab(t){
+  sgTab = t;
+  document.querySelectorAll('#page-signing .section-tab').forEach((b,i)=>
+    b.classList.toggle('active', ['clients','collect','history','settings'][i]===t));
+  ['clients','collect','history','settings'].forEach(id=>{
+    const el=document.getElementById('sg-tab-'+id);
+    if(el) el.classList.toggle('hidden', id!==t);
+  });
+  if(t==='clients') renderSgClients();
+  if(t==='collect') renderColClientSelect();
+  if(t==='history') renderSgHistory();
+  if(t==='settings'){
+    const days=getSgSettings().overdueDays||30;
+    document.getElementById('sg-overdue-days').value=days;
+  }
+}
+
+/* ── Overview Stats ── */
+function renderSgOverview(){
+  if(!document.getElementById('sg-overview-stats')) return;
+  const bills = DB.signBills || [];
+  const totalSign = bills.reduce((s,b)=>s+(+b.amount||0),0); // includes advance for sign bills
+  const totalPaid = bills.reduce((s,b)=>s+(b.payments||[]).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+  const totalDisc = bills.reduce((s,b)=>s+(b.payments||[]).reduce((ss,p)=>ss+(+p.discount||0),0),0);
+  const totalUnpaid = totalSign - totalPaid - totalDisc;
+  const overdueBills = bills.filter(b=>isOverdue(b));
+  const now = new Date();
+  const moSign = bills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).reduce((s,b)=>s+(+b.amount||0),0);
+  // This month collections
+  const moCollect = bills.reduce((s,b)=>s+(b.payments||[]).filter(p=>{const d=new Date(p.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();}).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+
+  // Recovery ratio
+  const totalRecovery=totalSign>0?Math.round((totalPaid+totalDisc)/totalSign*100):0;
+  const moRecovery=moSign>0?Math.round(moCollect/moSign*100):0;
+  const overdueAmt=overdueBills.reduce((s,b)=>s+getSignBillRemaining(b),0);
+
+  document.getElementById('sg-overview-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">簽單總額</div><div class="stat-value">$${fmt(totalSign)}</div><div class="stat-sub">${bills.length} 張</div></div>
+    <div class="stat-card"><div class="stat-label">已收金額</div><div class="stat-value green">$${fmt(totalPaid+totalDisc)}</div><div class="stat-sub">含折扣$${fmt(totalDisc)}</div></div>
+    <div class="stat-card"><div class="stat-label">未收金額</div><div class="stat-value ${totalUnpaid>0?'red':''}">$${fmt(totalUnpaid)}</div></div>
+    <div class="stat-card"><div class="stat-label">整體回收率</div><div class="stat-value ${totalRecovery>=80?'green':totalRecovery>=50?'':'red'}">${totalRecovery}%</div><div class="stat-sub">${totalRecovery>=80?'良好':totalRecovery>=50?'尚可':'偏低'}</div></div>
+    <div class="stat-card"><div class="stat-label">本月新增簽單</div><div class="stat-value">$${fmt(moSign)}</div></div>
+    <div class="stat-card"><div class="stat-label">本月實收款</div><div class="stat-value green">$${fmt(moCollect)}</div><div class="stat-sub">回收率 ${moRecovery}%</div></div>
+    <div class="stat-card"><div class="stat-label">逾期未收</div><div class="stat-value ${overdueBills.length>0?'red':''}">$${fmt(overdueAmt)}</div><div class="stat-sub">${overdueBills.length} 張</div></div>`;
+
+  // Recovery analysis bar
+  const alertEl2=document.getElementById('sg-recovery-bar');
+  if(alertEl2){
+    const rColor=totalRecovery>=80?'var(--green)':totalRecovery>=50?'var(--orange)':'var(--red)';
+    const rMsg=totalRecovery>=80?'回收率良好 ✓':totalRecovery>=50?'回收率尚可，持續催收':' 回收率偏低，需積極追收！';
+    alertEl2.innerHTML=`<div class="card" style="margin-bottom:10px">
+      <div class="card-title">📊 簽單回收分析</div>
+      <div class="flex-between small mb8"><span>整體回收率</span><span style="font-weight:bold;color:${rColor}">${totalRecovery}%</span></div>
+      <div class="progress-bar" style="height:12px"><div class="progress-fill" style="width:${Math.min(totalRecovery,100)}%;background:${rColor}"></div></div>
+      <div style="font-size:11px;margin-top:6px;color:${rColor}">${rMsg}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;font-size:11px;text-align:center">
+        <div style="background:var(--milk2);border-radius:6px;padding:6px"><div style="color:var(--text3)">已收回</div><div style="font-weight:bold;color:var(--green)">$${fmt(totalPaid+totalDisc)}</div></div>
+        <div style="background:var(--milk2);border-radius:6px;padding:6px"><div style="color:var(--text3)">未收回</div><div style="font-weight:bold;color:var(--red)">$${fmt(totalUnpaid)}</div></div>
+        <div style="background:var(--milk2);border-radius:6px;padding:6px"><div style="color:var(--text3)">逾期</div><div style="font-weight:bold;color:var(--red)">$${fmt(overdueAmt)}</div></div>
+      </div>
+    </div>`;
+  }
+
+  // Overdue alert
+  const alertEl=document.getElementById('sg-overdue-alert');
+  if(overdueBills.length>0){
+    const clients=[...new Set(overdueBills.map(b=>b.client||'未知'))];
+    alertEl.innerHTML=`<div class="alert alert-red" style="margin-bottom:10px">⚠️ 逾期未收：${clients.join('、')} 等 ${overdueBills.length} 張單，共 $${fmt(overdueBills.reduce((s,b)=>s+getSignBillRemaining(b),0))}</div>`;
+  } else {
+    alertEl.innerHTML='';
+  }
+}
+
+/* ── Client List ── */
+function renderSgClients(){
+  renderSgOverview();
+  // Init year/month selects if needed
+  const filterYearEl=document.getElementById('sg-filter-year');
+  if(filterYearEl&&!filterYearEl.options.length){
+    const y=NOW.getFullYear();
+    const years=[];for(let i=y-3;i<=y+1;i++)years.push(i);
+    filterYearEl.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
+  }
+  const filterMonthEl=document.getElementById('sg-filter-month');
+  if(filterMonthEl&&filterMonthEl.options.length<=1){
+    filterMonthEl.innerHTML='<option value="0">全部月份</option>'+
+      Array.from({length:12},(_,i)=>`<option value="${i+1}"${(i+1)===NOW.getMonth()+1?' selected':''}>${i+1}月</option>`).join('');
+  }
+
+  const filterYear=+(filterYearEl?.value||NOW.getFullYear());
+  const filterMonth=+(filterMonthEl?.value||0);
+  const filterStatus=document.getElementById('sg-filter-status')?.value||'';
+
+  const allBills = DB.signBills || [];
+
+  // Filter bills by month (0 = all)
+  const bills = filterMonth===0
+    ? allBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===filterYear;})
+    : allBills.filter(b=>{const d=new Date(b.date);return d.getFullYear()===filterYear&&d.getMonth()+1===filterMonth;});
+
+  // Group by client
+  const clients = {};
+  bills.forEach(b=>{
+    const c = b.client||'未命名';
+    if(!clients[c]) clients[c]={bills:[]};
+    clients[c].bills.push(b);
+  });
+  const el=document.getElementById('sg-clients-list');
+  if(!el) return;
+
+  // Period label
+  const periodLabel=filterMonth===0?`${filterYear}年 全年`:` ${filterYear}年${filterMonth}月`;
+  const filteredTotal=bills.reduce((s,b)=>s+(+b.amount||0),0);
+  const filteredUnpaid=bills.reduce((s,b)=>s+getSignBillRemaining(b),0);
+  el.innerHTML=`<div style="background:var(--milk2);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:12px" class="flex-between">
+    <span style="color:var(--text2)">${periodLabel} ｜ ${bills.length} 張單 ｜ 共 ${Object.keys(clients).length} 位客戶</span>
+    <span>簽單 <strong>$${fmt(filteredTotal)}</strong> ／ 未收 <strong class="text-red">$${fmt(filteredUnpaid)}</strong></span>
+  </div>`;
+
+  if(!Object.keys(clients).length){
+    el.innerHTML+='<div class="small text-center" style="padding:16px;color:var(--text3)">此期間無簽單記錄</div>';
+    return;
+  }
+  let html='';
+  Object.entries(clients).forEach(([client, data])=>{
+    const cTotal=data.bills.reduce((s,b)=>s+(+b.amount||0),0);
+    const cPaid=data.bills.reduce((s,b)=>s+(b.payments||[]).reduce((ss,p)=>ss+(+p.amount||0),0),0);
+    const cDisc=data.bills.reduce((s,b)=>s+(b.payments||[]).reduce((ss,p)=>ss+(+p.discount||0),0),0);
+    const cUnpaid=cTotal-cPaid-cDisc;
+    const hasOverdue=data.bills.some(b=>isOverdue(b));
+    const status=cUnpaid<=0?'paid':cPaid>0?'partial':'unpaid';
+    // Filter
+    if(filterStatus==='unpaid'&&cUnpaid<=0) return;
+    if(filterStatus==='overdue'&&!hasOverdue) return;
+    if(filterStatus==='paid'&&cUnpaid>0) return;
+
+    const statusColors={paid:'text-green',partial:'text-gold',unpaid:'text-red'};
+    const statusLabels={paid:'已結清',partial:'部分收款',unpaid:'未收款'};
+    html+=`<div class="card" style="margin-bottom:10px">
+      <div class="flex-between mb8">
+        <div>
+          <span style="font-size:14px;font-weight:bold">${client}</span>
+          ${hasOverdue?'<span class="badge badge-red" style="margin-left:6px">⚠ 逾期</span>':''}
+        </div>
+        <div class="text-right">
+          <div style="font-size:11px;color:var(--text3)">簽單 $${fmt(cTotal)} ／ 已收 $${fmt(cPaid+cDisc)}</div>
+          <div style="font-weight:bold;font-size:14px" class="${statusColors[status]}">未收 $${fmt(cUnpaid)}</div>
+        </div>
+      </div>
+      <div>
+        ${data.bills.sort((a,b)=>b.date.localeCompare(a.date)).map(b=>{
+          const remaining=getSignBillRemaining(b);
+          const bStatus=getSignBillStatus(b);
+          const bOverdue=isOverdue(b);
+          const bPaid=(b.payments||[]).reduce((s,p)=>s+(+p.amount||0),0);
+          const bDisc=(b.payments||[]).reduce((s,p)=>s+(+p.discount||0),0);
+          const statusBadge=bStatus==='paid'?'<span class="badge badge-green">已結清</span>':bStatus==='partial'?'<span class="badge badge-orange">部分收款</span>':'<span class="badge badge-red">未收款</span>';
+          const hasAdv=(+b.advanceAmt||0)>0;
+          return `<div style="background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:5px${bOverdue?' border-left:3px solid var(--red)':''}">
+            <div class="flex-between mb8">
+              <div>
+                <span style="font-size:12px;font-weight:bold">${b.num||'無單號'}</span>
+                <span style="font-size:11px;color:var(--text3);margin:0 6px">${b.date}</span>
+                ${b.room?`<span style="font-size:11px;color:var(--text3)">包廂${b.room}</span>`:''}
+                ${bOverdue?'<span class="badge badge-red" style="margin-left:4px">逾期</span>':''}
+              </div>
+              <div class="flex gap8">
+                ${statusBadge}
+                ${['admin','accounting'].includes(currentRole)?`<button class="btn btn-sm btn-danger" onclick="deleteSignBill(${b.id})">刪</button>`:''}
+              </div>
+            </div>
+            <div class="flex-between" style="font-size:12px">
+              <div>
+                <span>總應收 $${fmt(b.amount)}</span>
+                ${hasAdv?`<span style="font-size:10px;color:var(--text3);margin-left:6px">（簽單$${fmt(b.signAmt||b.amount)}＋借支$${fmt(b.advanceAmt||0)}）</span>`:''}
+              </div>
+              <span class="text-green">已收 $${fmt(bPaid)}${bDisc>0?' (+折扣$'+fmt(bDisc)+')':''}</span>
+              <span class="${remaining>0?'text-red':'text-green'}">未收 $${fmt(remaining)}</span>
+            </div>
+            ${(b.payments||[]).length?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--milk3)">
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">還款記錄</div>
+              ${(b.payments||[]).map(p=>`<div class="flex-between" style="font-size:11px;padding:1px 0"><span>${p.date} 實收$${fmt(p.amount)}${p.discount>0?' 折扣$'+fmt(p.discount):''}</span><span style="color:var(--text3)">${p.note||''}</span></div>`).join('')}
+            </div>`:''}
+            ${b.note?`<div style="font-size:10px;color:var(--text3);margin-top:4px">備註：${b.note}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html || '<div class="small text-center" style="padding:16px;color:var(--text3)">無符合條件的客戶</div>';
+}
+
+/* ── Add Sign Modal ── */
+function openAddSignModal(){
+  document.getElementById('add-sign-modal').style.display='flex';
+  document.getElementById('asg-date').value=NOW.toISOString().slice(0,10);
+}
+function closeAddSignModal(){
+  document.getElementById('add-sign-modal').style.display='none';
+}
+function saveAddSign(){
+  if(!['admin','accounting'].includes(currentRole)){alert('您的權限無法新增簽單');return;}
+  const date=document.getElementById('asg-date').value;
+  const num=document.getElementById('asg-num').value.trim();
+  const client=document.getElementById('asg-client').value.trim();
+  const room=document.getElementById('asg-room').value.trim();
+  const amount=+document.getElementById('asg-amount').value||0;
+  const note=document.getElementById('asg-note').value;
+  if(!date||!client||amount<=0){alert('請填寫日期、客戶姓名和金額');return;}
+  if(!DB.signBills) DB.signBills=[];
+  DB.signBills.push({id:Date.now(),date,num,client,room,amount,source:'manual',note,payments:[]});
+  writeLog('新增',`手動簽單 ${client} ${num} $${amount.toLocaleString()}`);
+  scheduleSave();
+  closeAddSignModal();
+  renderSgClients();
+}
+
+function deleteSignBill(id){
+  if(!canWrite()){ alert('無權限'); return; }
+  if(!confirm('確認刪除此筆簽單？此操作不可復原')) return;
+  const b=(DB.signBills||[]).find(x=>x.id===id);
+  writeLog('刪除',`簽單 ${b?b.client:''} ${b?b.num:''} $${b?fmt(b.amount):''}`);
+  // 加入黑名單，防止 sync 重新建立
+  if(b && b.source==='bill' && b.sourceId){
+    if(!DB.signBillDeleted) DB.signBillDeleted=[];
+    if(!DB.signBillDeleted.includes(b.sourceId)){
+      DB.signBillDeleted.push(b.sourceId);
+    }
+  }
+  DB.signBills=DB.signBills.filter(x=>x.id!==id);
+  scheduleSave(); renderSgClients();
+}
+
+/* ── Collection ── */
+function renderColClientSelect(){
+  const sel=document.getElementById('col-client');
+  if(!sel) return;
+  const bills=DB.signBills||[];
+  const clients=[...new Set(bills.filter(b=>getSignBillRemaining(b)>0).map(b=>b.client||'未命名'))];
+  sel.innerHTML='<option value="">選擇客戶</option>'+clients.map(c=>`<option value="${c}">${c}</option>`).join('');
+  document.getElementById('col-bills-section').classList.add('hidden');
+  document.getElementById('col-date').value=NOW.toISOString().slice(0,10);
+}
+
+function loadClientBills(){
+  const client=document.getElementById('col-client').value;
+  const section=document.getElementById('col-bills-section');
+  if(!client){section.classList.add('hidden');return;}
+  section.classList.remove('hidden');
+  const bills=(DB.signBills||[]).filter(b=>b.client===client&&getSignBillRemaining(b)>0);
+  document.getElementById('col-bills-list').innerHTML=bills.map(b=>`
+    <div style="background:var(--milk);border:1px solid var(--milk3);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:5px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+        <input type="checkbox" id="chk-${b.id}" onchange="calcColSelected()" style="width:auto;accent-color:var(--gold2)">
+        <div style="flex:1">
+          <span style="font-size:12px;font-weight:bold">${b.num||'無單號'}</span>
+          <span style="font-size:11px;color:var(--text3);margin:0 6px">${b.date}</span>
+          ${isOverdue(b)?'<span class="badge badge-red">逾期</span>':''}
+        </div>
+        <span style="font-weight:bold;color:var(--red)">未收 $${fmt(getSignBillRemaining(b))}</span>
+      </label>
+    </div>`).join('')||'<div class="small" style="padding:8px;color:var(--text3)">此客戶無未收款單據</div>';
+  calcColSelected();
+}
+
+function calcColSelected(){
+  const bills=DB.signBills||[];
+  let total=0;
+  bills.forEach(b=>{
+    const chk=document.getElementById('chk-'+b.id);
+    if(chk&&chk.checked) total+=getSignBillRemaining(b);
+  });
+  document.getElementById('col-selected-total').textContent='$'+fmt(total);
+  calcColDiscount();
+}
+
+function calcColDiscount(){
+  const total=+(document.getElementById('col-selected-total').textContent.replace(/[$,]/g,''))||0;
+  const actual=+document.getElementById('col-amount').value||0;
+  const disc=Math.max(0, total-actual);
+  document.getElementById('col-discount').value=disc||'';
+  const check=document.getElementById('col-check');
+  if(!actual){check.innerHTML='';return;}
+  if(actual===total){
+    check.style.cssText='background:#D4EAD4;color:var(--green)';
+    check.textContent='✓ 全額收清';
+  } else if(actual<total){
+    check.style.cssText='background:#EAE0C8;color:var(--gold2)';
+    check.textContent=`折扣/去尾 $${fmt(disc)}，實收 $${fmt(actual)}`;
+  } else {
+    check.style.cssText='background:#EAD4D4;color:var(--red)';
+    check.textContent=`⚠ 超出金額 $${fmt(actual-total)}，請確認`;
+  }
+}
+
+function saveCollection(){
+  if(!['admin','accounting'].includes(currentRole)){alert('您的權限無法執行收款');return;}
+  const client=document.getElementById('col-client').value;
+  const date=document.getElementById('col-date').value;
+  const actual=+document.getElementById('col-amount').value||0;
+  const note=document.getElementById('col-note').value;
+  if(!client||!date||actual<=0){alert('請填寫收款日期和實收金額');return;}
+  const bills=DB.signBills||[];
+  const selected=bills.filter(b=>{const chk=document.getElementById('chk-'+b.id);return chk&&chk.checked;});
+  if(!selected.length){alert('請勾選要核銷的單據');return;}
+  // Distribute payment across selected bills
+  let remaining=actual;
+  const totalUnpaid=selected.reduce((s,b)=>s+getSignBillRemaining(b),0);
+  const totalDisc=Math.max(0, totalUnpaid-actual);
+  const payId=Date.now();
+  selected.forEach((b,idx)=>{
+    const billRemaining=getSignBillRemaining(b);
+    let billPay=0, billDisc=0;
+    if(idx===selected.length-1){
+      // Last bill gets the remainder
+      billPay=remaining;
+      billDisc=Math.max(0, billRemaining-billPay);
+    } else {
+      billPay=Math.min(remaining, billRemaining);
+      billDisc=0;
+    }
+    remaining-=billPay;
+    if(!b.payments) b.payments=[];
+    b.payments.push({id:payId+idx, date, amount:billPay, discount:billDisc, note});
+  });
+  writeLog('修改',`收款核銷 ${client} 實收$${fmt(actual)} 折扣$${fmt(totalDisc)} 核銷${selected.length}張`);
+  scheduleSave();
+  alert(`✅ 收款記錄已儲存！\n客戶：${client}\n實收：$${fmt(actual)}\n折扣：$${fmt(totalDisc)}`);
+  document.getElementById('col-amount').value='';
+  document.getElementById('col-note').value='';
+  renderColClientSelect();
+  renderSgOverview();
+}
+
+/* ── History ── */
+function renderSgHistory(){
+  const year=+document.getElementById('sg-hist-year').value;
+  const month=+document.getElementById('sg-hist-month').value;
+  const bills=DB.signBills||[];
+  const allPayments=[];
+  bills.forEach(b=>{
+    (b.payments||[]).forEach(p=>{
+      const d=new Date(p.date);
+      if(d.getFullYear()===year&&(month===0||d.getMonth()+1===month)){
+        allPayments.push({...p, client:b.client, num:b.num});
+      }
+    });
+  });
+  allPayments.sort((a,b)=>b.date.localeCompare(a.date));
+  let tt=0,td=0;
+  document.getElementById('sg-hist-tbody').innerHTML=allPayments.map(p=>{
+    tt+=+p.amount||0; td+=+p.discount||0;
+    return `<tr>
+      <td>${p.date}</td><td>${p.client||'-'}</td>
+      <td class="text-green">$${fmt(p.amount)}</td>
+      <td class="text-red">${p.discount>0?'$'+fmt(p.discount):'-'}</td>
+      <td>${p.num||'-'}</td><td>${p.note||''}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="6" class="text-center small" style="padding:12px">無收款記錄</td></tr>';
+  document.getElementById('sg-hist-total').textContent='$'+fmt(tt);
+  document.getElementById('sg-hist-discount').textContent=td>0?'$'+fmt(td):'-';
+}
+
+/* ── Settings ── */
+function saveSgSettings(){
+  const days=+document.getElementById('sg-overdue-days').value||30;
+  if(!DB.sgSettings) DB.sgSettings={};
+  DB.sgSettings.overdueDays=days;
+  scheduleSave();
+  alert(`✅ 已設定逾期天數為 ${days} 天`);
+  renderSgOverview();
+}
+
+/* ── Hook: auto-create sign bill when bill saved ──
+   Called from saveBill() after DB.daily.push()
+*/
+function syncSignBillsFromDaily(){
+  if(!DB.signBills) DB.signBills=[];
+  (DB.daily||[]).forEach(b=>{
+    const signAmt=b.payType==='sign'?+b.total||0:b.payType==='mixed'?+b.signAmt||0:0;
+    if(signAmt<=0) return;
+    // Skip if manually deleted
+    if((DB.signBillDeleted||[]).includes(b.id)) return;
+    // B: 只有簽單/混合結帳才加入借支
+    const advance=+b.advance||0;
+    const totalSignAmt=signAmt+advance;
+    const exists=DB.signBills.find(x=>x.sourceId===b.id);
+    if(!exists){
+      DB.signBills.push({
+        id: Date.now()+Math.random(),
+        date:b.date, num:b.num||'', client:b.client||'',
+        room:b.room||'',
+        signAmt:signAmt,      // 簽單金額
+        advanceAmt:advance,   // 借支金額
+        amount:totalSignAmt,  // 總應收 = 簽單 + 借支
+        source:'bill', sourceId:b.id,
+        note:b.note||'', payments:[]
+      });
+    } else {
+      // Update amount if bill was edited
+      exists.signAmt=signAmt;
+      exists.advanceAmt=advance;
+      exists.amount=totalSignAmt;
+    }
+  });
+}
+
+function renderSigning(){
+  if(!DB.signBills) DB.signBills=[];
+  // Sync from daily bills
+  syncSignBillsFromDaily();
+  // Init history year/month selects
+  const y=NOW.getFullYear();
+  const histYear=document.getElementById('sg-hist-year');
+  if(histYear&&!histYear.options.length){
+    const years=[];for(let i=y-3;i<=y+1;i++)years.push(i);
+    histYear.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
+  }
+  const histMonth=document.getElementById('sg-hist-month');
+  if(histMonth&&histMonth.options.length<=1){
+    histMonth.innerHTML='<option value="0">全部月份</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}"${(i+1)===NOW.getMonth()+1?' selected':''}>${i+1}月</option>`).join('');
+  }
+  renderSgOverview();
+  renderSgClients();
+}
+
+
+function renderReport(){
+  const year=+document.getElementById('rp-year').value;
+  let prevRev=null; const cards=[],rows=[];
+  for(let m=1;m<=12;m++){
+    const days=DB.daily.filter(r=>r.date&&r.date.startsWith(`${year}-${String(m).padStart(2,'0')}`));
+    const rev=days.reduce((s,r)=>s+(+r.total||0),0);
+    const k=ym(year,m); const mo=DB.monthly[k];
+    const exp=mo?+mo.totalExp||0:0; const profit=mo?+mo.netProfit:null;
+    const growth=prevRev!==null&&prevRev>0?Math.round((rev-prevRev)/prevRev*100):null;
+    cards.push(`<div class="month-cell ${rev>0?'has-data':''}">
+      <div class="month-cell-name">${m}月</div>
+      <div class="month-cell-value">${rev>0?'$'+fmt(rev):'-'}</div>
+      ${growth!==null?`<div class="${growth>=0?'growth-up':'growth-down'}">${growth>=0?'↑':'↓'}${Math.abs(growth)}%</div>`:''}
+    </div>`);
+    rows.push(`<tr>
+      <td>${m}月</td><td>${rev>0?'$'+fmt(rev):'-'}</td>
+      <td>${exp>0?'$'+fmt(exp):'-'}</td>
+      <td class="${profit!=null&&profit>=0?'text-green':'text-red'}">${profit!=null?(profit>=0?'+ ':'-')+' $'+fmt(Math.abs(profit)):'-'}</td>
+      <td>${growth!==null?`<span class="${growth>=0?'growth-up':'growth-down'}">${growth>=0?'↑':'↓'}${Math.abs(growth)}%</span>`:'-'}</td>
+    </tr>`);
+    if(rev>0) prevRev=rev;
+  }
+  document.getElementById('rp-month-cards').innerHTML=cards.join('');
+  document.getElementById('rp-tbody').innerHTML=rows.join('');
+}
+function renderYearlyReport(){
+  const ya=+document.getElementById('rp-yr-a').value;
+  const yb=+document.getElementById('rp-yr-b').value;
+  let html=`<table><thead><tr><th>月份</th><th>${ya}年</th><th>${yb}年</th><th>成長率</th></tr></thead><tbody>`;
+  let totA=0,totB=0;
+  for(let m=1;m<=12;m++){
+    const rA=DB.daily.filter(r=>r.date&&r.date.startsWith(`${ya}-${String(m).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.total||0),0);
+    const rB=DB.daily.filter(r=>r.date&&r.date.startsWith(`${yb}-${String(m).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.total||0),0);
+    totA+=rA; totB+=rB;
+    const gr=rB>0?Math.round((rA-rB)/rB*100):null;
+    html+=`<tr><td>${m}月</td><td>${rA>0?'$'+fmt(rA):'-'}</td><td>${rB>0?'$'+fmt(rB):'-'}</td><td>${gr!==null?`<span class="${gr>=0?'growth-up':'growth-down'}">${gr>=0?'↑':'↓'}${Math.abs(gr)}%</span>`:'-'}</td></tr>`;
+  }
+  const tg=totB>0?Math.round((totA-totB)/totB*100):null;
+  html+=`</tbody><tfoot><tr class="tfoot"><td>年度合計</td><td>$${fmt(totA)}</td><td>$${fmt(totB)}</td><td>${tg!==null?`<span class="${tg>=0?'growth-up':'growth-down'}">${tg>=0?'↑':'↓'}${Math.abs(tg)}%</span>`:'-'}</td></tr></tfoot></table>`;
+  document.getElementById('rp-yearly-content').innerHTML=html;
+}
+
+</script>
+</body>
+</html>
