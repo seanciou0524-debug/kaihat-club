@@ -1847,7 +1847,7 @@ function renderCharts(year, month){
     chartCard.style.display='';
     const monthly=[];
     for(let mm=1;mm<=12;mm++){
-      const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===mm;});
+      const days=DB.daily.filter(r=>r.date&&r.date.startsWith(`${year}-${String(mm).padStart(2,'0')}`));
       monthly.push(days.reduce((s,r)=>s+(+r.total||0),0));
     }
     const ctx=document.getElementById('ov-trend-chart').getContext('2d');
@@ -2259,16 +2259,21 @@ function saveBill(){
 
 function renderDailyList(){
   const dateVal=document.getElementById('d-date').value;
-  // Auto-sync month selector to match selected date
+  // Derive year/month directly from dateVal for reliability
+  let year, month;
   if(dateVal){
     const d=new Date(dateVal);
+    year=d.getFullYear();
+    month=d.getMonth()+1;
+    // Sync selectors to match
     const dlYear=document.getElementById('dl-year');
     const dlMonth=document.getElementById('dl-month');
-    if(dlYear) dlYear.value=d.getFullYear();
-    if(dlMonth) dlMonth.value=d.getMonth()+1;
+    if(dlYear) dlYear.value=year;
+    if(dlMonth) dlMonth.value=month;
+  } else {
+    year=+document.getElementById('dl-year').value||new Date().getFullYear();
+    month=+document.getElementById('dl-month').value||new Date().getMonth()+1;
   }
-  const year=+document.getElementById('dl-year').value;
-  const month=+document.getElementById('dl-month').value;
 
   // ── 當日單據 ──
   const todayBills=dateVal ? DB.daily.filter(r=>r.date===dateVal) : [];
@@ -2317,7 +2322,7 @@ function renderDailyList(){
   }
 
   // 月統計
-  const monthBills=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===month;});
+  const monthBills=DB.daily.filter(r=>r.date&&r.date.startsWith(`${year}-${String(month).padStart(2,'0')}`));
   const moTotal=monthBills.reduce((s,r)=>s+(+r.total||0),0);
   const moCash=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const moSign=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
@@ -2808,7 +2813,7 @@ function renderMonthly(){
   const k=moKey(); const{y,m}=parseYM(k);
 
   // ── 月營業資料 ──
-  const bills=(DB.daily||[]).filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const bills=(DB.daily||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
   const revenue=bills.reduce((s,r)=>s+(+r.total||0),0);
   const cashRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const signRev=bills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
@@ -2820,20 +2825,20 @@ function renderMonthly(){
   const treatTotal=bills.reduce((s,r)=>s+(+r.treatTotal||0),0);
 
   // ── 月進貨資料 ──
-  const purchases=(DB.purchases||[]).filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const purchases=(DB.purchases||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
   const puA=purchases.filter(r=>r.category==='A').reduce((s,r)=>s+(+r.amount||0),0);
   const puB=purchases.filter(r=>r.category==='B').reduce((s,r)=>s+(+r.amount||0),0);
   const puC=purchases.filter(r=>r.category==='C').reduce((s,r)=>s+(+r.amount||0),0);
   const purchaseTotal=puA+puB+puC;
 
   // ── 月人事資料 ──
-  const payrolls=(DB.dailyPayroll||[]).filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const payrolls=(DB.dailyPayroll||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
   const prTypes={daily:0,table:0,intro:0,ticket:0,monthly:0};
   payrolls.forEach(r=>{ if(prTypes[r.type]!==undefined) prTypes[r.type]+=(+r.amount||0); else prTypes[r.type]=+r.amount||0; });
   const payrollTotal=payrolls.reduce((s,r)=>s+(+r.amount||0),0);
 
   // ── 月其他支出 ──
-  const expenses=(DB.dailyExpenses||[]).filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const expenses=(DB.dailyExpenses||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
   const expByName={};
   expenses.forEach(r=>{ expByName[r.name]=(expByName[r.name]||0)+(+r.amount||0); });
   const expenseTotal=expenses.reduce((s,r)=>s+(+r.amount||0),0);
@@ -2849,7 +2854,7 @@ function renderMonthly(){
     .reduce((ss,p)=>ss+(+p.amount||0),0),0);
 
   // ── 月現金借支（按結帳類型分）──
-  const bills2=(DB.daily||[]).filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&d.getMonth()+1===m;});
+  const bills2=(DB.daily||[]).filter(r=>r.date&&r.date.startsWith(`${y}-${String(m).padStart(2,'0')}`));
   const moCashAdvance=bills2.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
   const moSignAdvance=bills2.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
 
@@ -3520,7 +3525,7 @@ function renderReport(){
   const year=+document.getElementById('rp-year').value;
   let prevRev=null; const cards=[],rows=[];
   for(let m=1;m<=12;m++){
-    const days=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===year&&d.getMonth()+1===m;});
+    const days=DB.daily.filter(r=>r.date&&r.date.startsWith(`${year}-${String(m).padStart(2,'0')}`));
     const rev=days.reduce((s,r)=>s+(+r.total||0),0);
     const k=ym(year,m); const mo=DB.monthly[k];
     const exp=mo?+mo.totalExp||0:0; const profit=mo?+mo.netProfit:null;
@@ -3547,8 +3552,8 @@ function renderYearlyReport(){
   let html=`<table><thead><tr><th>月份</th><th>${ya}年</th><th>${yb}年</th><th>成長率</th></tr></thead><tbody>`;
   let totA=0,totB=0;
   for(let m=1;m<=12;m++){
-    const rA=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===ya&&d.getMonth()+1===m;}).reduce((s,r)=>s+(+r.total||0),0);
-    const rB=DB.daily.filter(r=>{const d=new Date(r.date);return d.getFullYear()===yb&&d.getMonth()+1===m;}).reduce((s,r)=>s+(+r.total||0),0);
+    const rA=DB.daily.filter(r=>r.date&&r.date.startsWith(`${ya}-${String(m).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.total||0),0);
+    const rB=DB.daily.filter(r=>r.date&&r.date.startsWith(`${yb}-${String(m).padStart(2,'0')}`)).reduce((s,r)=>s+(+r.total||0),0);
     totA+=rA; totB+=rB;
     const gr=rB>0?Math.round((rA-rB)/rB*100):null;
     html+=`<tr><td>${m}月</td><td>${rA>0?'$'+fmt(rA):'-'}</td><td>${rB>0?'$'+fmt(rB):'-'}</td><td>${gr!==null?`<span class="${gr>=0?'growth-up':'growth-down'}">${gr>=0?'↑':'↓'}${Math.abs(gr)}%</span>`:'-'}</td></tr>`;
