@@ -2522,8 +2522,7 @@ async function changeUserPassword(){
       if(!DB.pwdRequests) DB.pwdRequests = {};
       DB.pwdRequests[targetEmail] = { newPwd, requestedAt: Date.now(), by: currentUser.email };
       await saveDB();
-      showPwdMsg(`✅ 密碼更新請求已儲存！
-${targetEmail} 下次登入時會自動套用新密碼。`, 'var(--green)');
+      showPwdMsg(`✅ 密碼更新請求已儲存！\n${targetEmail} 下次登入時會自動套用新密碼。`, 'var(--green)');
       writeLog('修改', `密碼請求：${targetEmail}`);
       document.getElementById('pwd-new').value = '';
       document.getElementById('pwd-confirm').value = '';
