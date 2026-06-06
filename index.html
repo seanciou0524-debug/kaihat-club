@@ -368,11 +368,25 @@ service cloud.firestore {
 
         <!-- 小菜明細 -->
         <div style="margin-bottom:12px">
-          <div class="flex-between mb8">
-            <label style="margin-bottom:0">小菜明細</label>
-            <button class="btn btn-sm btn-outline" onclick="addFoodRow()">＋ 新增</button>
+          <label style="margin-bottom:8px;display:block">小菜明細</label>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--text2)">小菜（每份 $500）</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button onclick="adjustFood('food',false)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--milk3);background:var(--milk2);cursor:pointer;font-size:16px;line-height:1">－</button>
+              <span id="food-qty-1" style="min-width:28px;text-align:center;font-weight:bold">0</span>
+              <button onclick="adjustFood('food',true)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--gold2);background:var(--milk);cursor:pointer;font-size:16px;line-height:1">＋</button>
+            </div>
+            <span id="food-amt-1" style="font-size:12px;color:var(--text2);min-width:50px;text-align:right">$0</span>
           </div>
-          <div id="food-rows"></div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--text2)">茶水（每份 $500）</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button onclick="adjustFood('tea',false)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--milk3);background:var(--milk2);cursor:pointer;font-size:16px;line-height:1">－</button>
+              <span id="food-qty-2" style="min-width:28px;text-align:center;font-weight:bold">0</span>
+              <button onclick="adjustFood('tea',true)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--gold2);background:var(--milk);cursor:pointer;font-size:16px;line-height:1">＋</button>
+            </div>
+            <span id="food-amt-2" style="font-size:12px;color:var(--text2);min-width:50px;text-align:right">$0</span>
+          </div>
           <div class="flex-between" style="padding:6px 10px;background:var(--milk2);border-radius:var(--radius-sm);font-size:12px">
             <span>小菜小計</span><span id="food-subtotal" class="text-gold bold">$0</span>
           </div>
@@ -618,7 +632,7 @@ service cloud.firestore {
 
       <!-- 月招待累計 -->
       <div class="card">
-        <div class="card-title">🎁 月招待酒水累計</div>
+        <div class="card-title">🎁 月招待酒水（純記錄，不計入損益）</div>
         <div id="mo-treat-detail"></div>
       </div>
 
@@ -2367,6 +2381,7 @@ window.removeAdvance = removeAdvance;
 window.saveSchedule = saveSchedule;
 window.toggleMixedPay = toggleMixedPay;
 window.addTreatRow = addTreatRow;
+window.adjustFood = adjustFood;
 window.calcMixedPay = calcMixedPay;
 
 /* Firebase Auth 狀態監聽（自動登入） */
@@ -2644,7 +2659,12 @@ function openBillForm(){
   // init empty rows
   document.getElementById('table-fee-rows').innerHTML='';
   document.getElementById('drink-rows').innerHTML='';
-  document.getElementById('food-rows').innerHTML='';
+  document.getElementById('food-rows') && (document.getElementById('food-rows').innerHTML='');
+  foodQty={food:0,tea:0};
+  document.getElementById('food-qty-1').textContent='0';
+  document.getElementById('food-qty-2').textContent='0';
+  document.getElementById('food-amt-1').textContent='$0';
+  document.getElementById('food-amt-2').textContent='$0';
   document.getElementById('treat-rows').innerHTML='';
   document.getElementById('b-num').value='';
   document.getElementById('b-room').value='';
@@ -2699,15 +2719,19 @@ function addDrinkRow(){
   calcBillTotal();
 }
 
-function addFoodRow(){
-  const container=document.getElementById('food-rows');
-  const div=document.createElement('div');
-  div.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:4px;margin-bottom:6px;align-items:center';
-  div.innerHTML=`
-    <input type="text" placeholder="品項名稱" oninput="calcBillTotal()">
-    <input type="number" placeholder="金額" oninput="calcBillTotal()">
-    <button onclick="this.parentElement.remove();calcBillTotal()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0">✕</button>`;
-  container.appendChild(div);
+function addFoodRow(){ /* replaced by fixed food items */ }
+
+// Food qty trackers
+let foodQty = {food: 0, tea: 0};
+const FOOD_PRICE = 500;
+
+function adjustFood(type, inc){
+  if(inc) foodQty[type]++;
+  else foodQty[type] = Math.max(0, foodQty[type]-1);
+  document.getElementById('food-qty-1').textContent = foodQty.food;
+  document.getElementById('food-qty-2').textContent = foodQty.tea;
+  document.getElementById('food-amt-1').textContent = '$'+(foodQty.food*FOOD_PRICE).toLocaleString();
+  document.getElementById('food-amt-2').textContent = '$'+(foodQty.tea*FOOD_PRICE).toLocaleString();
   calcBillTotal();
 }
 
@@ -2752,12 +2776,8 @@ function calcBillTotal(){
   });
   document.getElementById('drink-subtotal').textContent='$'+drinkTotal.toLocaleString();
 
-  // 小菜
-  let foodTotal=0;
-  document.querySelectorAll('#food-rows > div').forEach(row=>{
-    const inputs=row.querySelectorAll('input[type="number"]');
-    if(inputs[0]) foodTotal+=+inputs[0].value||0;
-  });
+  // 小菜（固定品項）
+  const foodTotal=(foodQty.food+foodQty.tea)*FOOD_PRICE;
   document.getElementById('food-subtotal').textContent='$'+foodTotal.toLocaleString();
 
   // 招待酒水（不計入營業額，只顯示統計）
@@ -2840,12 +2860,8 @@ function collectDrinks(){
 
 function collectFoods(){
   const rows=[];
-  document.querySelectorAll('#food-rows > div').forEach(row=>{
-    const inputs=row.querySelectorAll('input');
-    const item=inputs[0]?inputs[0].value.trim():'';
-    const amount=+(inputs[1]?inputs[1].value:0)||0;
-    if(item||amount>0) rows.push({item,amount});
-  });
+  if(foodQty.food>0) rows.push({item:`小菜 x${foodQty.food}`, amount:foodQty.food*FOOD_PRICE, qty:foodQty.food});
+  if(foodQty.tea>0) rows.push({item:`茶水 x${foodQty.tea}`, amount:foodQty.tea*FOOD_PRICE, qty:foodQty.tea});
   return rows;
 }
 
@@ -2967,6 +2983,7 @@ function renderDailyList(){
   const dayCashRev=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const daySign=todayBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
   const dayAdvance=todayBills.reduce((s,r)=>s+(+r.advance||0),0);
+  const dayTreatTotal=todayBills.reduce((s,r)=>s+(+r.treatTotal||0),0);
   const dayCashAdvance=todayBills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
   // Today sign collections
   const daySignCollect=dateVal?(DB.signBills||[]).reduce((s,b)=>
@@ -3002,6 +3019,7 @@ function renderDailyList(){
   const moCash=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.cashAmt||0:r.payType==='cash'?+r.total||0:0),0);
   const moSign=monthBills.reduce((s,r)=>s+(r.payType==='mixed'?+r.signAmt||0:r.payType==='sign'?+r.total||0:0),0);
   const moAdvance=monthBills.reduce((s,r)=>s+(+r.advance||0),0);
+  const moTreatTotal=monthBills.reduce((s,r)=>s+(+r.treatTotal||0),0);
   const moCashAdvance=monthBills.filter(r=>r.payType==='cash'||r.payType==='mixed').reduce((s,r)=>s+(+r.advance||0),0);
   const moSignAdv=monthBills.filter(r=>r.payType==='sign').reduce((s,r)=>s+(+r.advance||0),0);
   // Month sign collections from signing system
@@ -3651,7 +3669,7 @@ function renderMonthly(){
     <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>人事支出</span><span>－$${fmt(payrollTotal)}</span></div>
     <div class="flex-between" style="padding:5px 0;color:var(--red)"><span>其他支出</span><span>－$${fmt(expenseTotal)}</span></div>
     <hr class="divider">
-    <div class="flex-between" style="padding:5px 0;font-size:11px;color:var(--text3)"><span>招待酒水成本（參考）</span><span>$${fmt(treatTotal)}</span></div>
+    ${treatTotal>0?`<div class="flex-between" style="padding:5px 0;font-size:12px;border-top:1px dashed var(--milk3);color:var(--text2)"><span>🎁 招待酒水（純記錄，不計損益）</span><span>$${fmt(treatTotal)}</span></div>`:''}
     <div class="flex-between" style="padding:10px 0;font-size:16px;font-weight:bold;border-top:2px solid var(--milk3);margin-top:6px">
       <span>月淨利</span>
       <span class="${netProfit>=0?'text-green':'text-red'}">${netProfit>=0?'＋':'－'} $${fmt(Math.abs(netProfit))}</span>
