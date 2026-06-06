@@ -230,6 +230,7 @@ service cloud.firestore {
     <button class="nav-btn" onclick="showPage('monthly')">📈 月度結算</button>
     <button class="nav-btn" onclick="showPage('signing')">✍️ 簽單管理</button>
     <button class="nav-btn" onclick="showPage('report')">📋 年度報告</button>
+    <button class="nav-btn" onclick="showPage('schedule')">📅 班表管理</button>
     <button class="nav-btn" id="nav-log" onclick="showPage('log')" style="display:none">🔍 操作紀錄</button>
   </div>
 
@@ -819,7 +820,140 @@ service cloud.firestore {
       </div>
     </div>
 
-      <!-- ───── 操作紀錄 ───── -->
+      <!-- ───── 班表管理 ───── -->
+    <div id="page-schedule" class="hidden">
+
+      <!-- 頂部控制 -->
+      <div class="card">
+        <div class="flex-between mb8" style="flex-wrap:wrap;gap:8px">
+          <div class="flex gap8" style="align-items:center;flex-wrap:wrap">
+            <select id="sc-year" onchange="renderSchedule()" style="width:85px"></select>
+            <select id="sc-month" onchange="renderSchedule()" style="width:75px"></select>
+            <div class="section-tabs" style="margin-bottom:0">
+              <button class="section-tab active" id="sc-tab-1" onclick="setScPeriod(1)">第一檔 1-15日</button>
+              <button class="section-tab" id="sc-tab-2" onclick="setScPeriod(2)">第二檔 16-末日</button>
+            </div>
+          </div>
+          <div class="flex gap8">
+            <button class="btn btn-sm btn-outline" onclick="openAddStaffModal()">＋ 新增陪侍</button>
+            <button class="btn btn-sm btn-gold" onclick="saveSchedule()">💾 儲存班表</button>
+          </div>
+        </div>
+        <!-- 統計卡片 -->
+        <div class="stats-grid" id="sc-stats" style="margin-bottom:0"></div>
+      </div>
+
+      <!-- 陪侍班表 -->
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">👯 陪侍班表</div>
+          <div style="font-size:11px;color:var(--text3)">點格子切換狀態</div>
+        </div>
+        <!-- 圖例 -->
+        <div class="flex gap8" style="flex-wrap:wrap;margin-bottom:10px;font-size:11px">
+          <span style="background:#D4EAD4;color:var(--green);padding:2px 8px;border-radius:4px">上 上班</span>
+          <span style="background:#D4E4F0;color:#4A6A8A;padding:2px 8px;border-radius:4px">自 自由班</span>
+          <span style="background:#F0E4D4;color:var(--orange);padding:2px 8px;border-radius:4px">半 半薪</span>
+          <span style="background:#F0D4D4;color:var(--red);padding:2px 8px;border-radius:4px">扣 扣薪</span>
+          <span style="background:#EBEBEB;color:#888;padding:2px 8px;border-radius:4px">假 請假</span>
+          <span style="background:var(--milk2);color:var(--text3);padding:2px 8px;border-radius:4px">　 空白</span>
+        </div>
+        <div style="overflow-x:auto">
+          <div id="sc-escort-table"></div>
+        </div>
+      </div>
+
+      <!-- 固定人員班表 -->
+      <div class="card">
+        <div class="card-title">👔 固定人員班表</div>
+        <div style="overflow-x:auto">
+          <div id="sc-fixed-table"></div>
+        </div>
+      </div>
+
+      <!-- 預支/借支 -->
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="card-title" style="margin-bottom:0">💵 預支 / 借支記錄</div>
+          <button class="btn btn-sm btn-gold" onclick="openAddAdvanceModal()">＋ 新增預支</button>
+        </div>
+        <div id="sc-advance-list"></div>
+        <div class="flex-between" style="padding:8px 12px;background:var(--milk2);border-radius:var(--radius-sm);margin-top:8px">
+          <span style="font-size:12px">本檔預支/借支合計</span>
+          <span id="sc-advance-total" style="font-weight:bold;color:var(--red)">$0</span>
+        </div>
+      </div>
+
+      <!-- 薪資預估 -->
+      <div class="card">
+        <div class="card-title">📊 本檔薪資預估結算</div>
+        <div id="sc-pay-summary"></div>
+      </div>
+
+    </div>
+
+    <!-- 新增陪侍 Modal -->
+    <div id="add-staff-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.7);z-index:9000;align-items:center;justify-content:center;padding:20px">
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:380px">
+        <div class="flex-between mb8">
+          <div style="font-weight:bold;color:var(--brown3)">＋ 新增陪侍人員</div>
+          <button onclick="closeAddStaffModal()" style="background:none;border:none;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div class="form-group"><label>姓名（小名）</label><input type="text" id="staff-name" placeholder="例：小美"></div>
+        <div class="form-group"><label>日薪金額</label><input type="number" id="staff-daily" placeholder="0"></div>
+        <div class="btn-row">
+          <button class="btn btn-gold" onclick="saveAddStaff()">新增</button>
+          <button class="btn btn-outline" onclick="closeAddStaffModal()">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 格子輸入 Modal（自由班/扣薪） -->
+    <div id="cell-input-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.7);z-index:9000;align-items:center;justify-content:center;padding:20px">
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:320px">
+        <div class="flex-between mb8">
+          <div id="cell-modal-title" style="font-weight:bold;color:var(--brown3)">輸入金額</div>
+          <button onclick="closeCellModal()" style="background:none;border:none;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div id="cell-modal-desc" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
+        <div class="form-group"><label id="cell-modal-label">金額</label><input type="number" id="cell-modal-amount" placeholder="0"></div>
+        <div class="btn-row">
+          <button class="btn btn-gold" onclick="saveCellAmount()">確認</button>
+          <button class="btn btn-outline" onclick="closeCellModal()">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增預支 Modal -->
+    <div id="add-advance-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(74,55,40,0.7);z-index:9000;align-items:center;justify-content:center;padding:20px">
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:380px">
+        <div class="flex-between mb8">
+          <div style="font-weight:bold;color:var(--brown3)">＋ 新增預支/借支</div>
+          <button onclick="closeAddAdvanceModal()" style="background:none;border:none;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div class="form-group"><label>日期</label><input type="date" id="adv-date"></div>
+        <div class="form-group"><label>人員</label>
+          <select id="adv-staff">
+            <option value="">選擇人員</option>
+          </select>
+        </div>
+        <div class="form-group"><label>類型</label>
+          <select id="adv-type">
+            <option value="advance">預支（從薪資扣）</option>
+            <option value="borrow">借支（從薪資扣）</option>
+          </select>
+        </div>
+        <div class="form-group"><label>金額</label><input type="number" id="adv-amount" placeholder="0"></div>
+        <div class="form-group"><label>備註</label><input type="text" id="adv-note" placeholder="選填"></div>
+        <div class="btn-row">
+          <button class="btn btn-gold" onclick="saveAddAdvance()">新增</button>
+          <button class="btn btn-outline" onclick="closeAddAdvanceModal()">取消</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ───── 操作紀錄 ───── -->
     <div id="page-log" class="hidden">
       <div class="card">
         <div class="card-title">操作紀錄</div>
@@ -981,6 +1115,7 @@ function ensureSchema(){
   if(!DB.signBills) DB.signBills = [];
   if(!DB.sgSettings) DB.sgSettings = { overdueDays: 30 };
   if(!DB.carryover) DB.carryover = {}; // {YYYY-MM: amount}
+  if(!DB.schedule) DB.schedule = {};
   if(!DB.signBillDeleted) DB.signBillDeleted = [];
 }
 
@@ -1746,6 +1881,404 @@ function calcColFromDiscount(){
 }
 
 /* ════════════════════════════════════════
+   📅 班表管理系統
+   DB.schedule = {
+     'YYYY-MM-P': {  // P = 1 or 2 (period)
+       escorts: [{id, name, daily, cells:{1:'on'|'free'|'half'|'ded'|'leave'|'', freeAmt:0, dedAmt:0}}],
+       fixed: [{id, role, name, monthly, cells:{1:'work'|'off'|'leave'}}],
+       advances: [{id, date, staffId, staffName, type:'advance'|'borrow', amount, note}]
+     }
+   }
+════════════════════════════════════════ */
+
+let scPeriod = 1; // 1 or 2
+let cellModalData = null; // {staffId, day, type}
+
+function scKey(){
+  const y = document.getElementById('sc-year')?.value;
+  const m = document.getElementById('sc-month')?.value;
+  return `${y}-${String(m).padStart(2,'0')}-${scPeriod}`;
+}
+
+function setScPeriod(p){
+  scPeriod = p;
+  document.getElementById('sc-tab-1').classList.toggle('active', p===1);
+  document.getElementById('sc-tab-2').classList.toggle('active', p===2);
+  renderSchedule();
+}
+
+function getScData(){
+  const k = scKey();
+  if(!DB.schedule) DB.schedule = {};
+  if(!DB.schedule[k]) DB.schedule[k] = {escorts:[], fixed:[], advances:[]};
+  // Ensure fixed staff exist
+  const fixedStaff = [
+    {id:'mgr', role:'經理', name:'', monthly:0},
+    {id:'acc', role:'會計', name:'', monthly:0},
+    {id:'boy', role:'少爺', name:'', monthly:0}
+  ];
+  fixedStaff.forEach(fs => {
+    if(!DB.schedule[k].fixed.find(x=>x.id===fs.id)){
+      DB.schedule[k].fixed.push({...fs, cells:{}});
+    }
+  });
+  return DB.schedule[k];
+}
+
+function getPeriodDays(){
+  const y = +document.getElementById('sc-year')?.value;
+  const m = +document.getElementById('sc-month')?.value;
+  if(scPeriod===1) return Array.from({length:15}, (_,i)=>i+1);
+  const lastDay = new Date(y, m, 0).getDate();
+  return Array.from({length:lastDay-15}, (_,i)=>i+16);
+}
+
+function getStatusLabel(s){
+  const map = {on:'上', free:'自', half:'半', ded:'扣', leave:'假', '':''};
+  return map[s] || '';
+}
+
+function getStatusStyle(s){
+  const styles = {
+    on: 'background:#D4EAD4;color:var(--green)',
+    free: 'background:#D4E4F0;color:#4A6A8A',
+    half: 'background:#F0E4D4;color:var(--orange)',
+    ded: 'background:#F0D4D4;color:var(--red)',
+    leave: 'background:#EBEBEB;color:#888',
+    '': 'background:var(--milk2);color:var(--text3)'
+  };
+  return styles[s] || styles[''];
+}
+
+function cycleStatus(current){
+  const cycle = ['on','free','half','ded','leave',''];
+  const idx = cycle.indexOf(current);
+  return cycle[(idx+1) % cycle.length];
+}
+
+function clickEscortCell(staffId, day){
+  const data = getScData();
+  const staff = data.escorts.find(x=>x.id===staffId);
+  if(!staff) return;
+  if(!staff.cells) staff.cells = {};
+  const current = staff.cells[day] || '';
+  const next = cycleStatus(current);
+
+  // If switching to free or ded, show amount input
+  if(next === 'free'){
+    cellModalData = {staffId, day, type:'free', staffName: staff.name};
+    document.getElementById('cell-modal-title').textContent = '自由班檯費';
+    document.getElementById('cell-modal-desc').textContent = `${staff.name} ${day}日 — 輸入當日檯費金額（0=不計）`;
+    document.getElementById('cell-modal-label').textContent = '檯費金額';
+    document.getElementById('cell-modal-amount').value = staff.cells[day+'_free'] || '';
+    document.getElementById('cell-input-modal').style.display = 'flex';
+    staff.cells[day] = next;
+    scheduleSave(); renderSchedule();
+    return;
+  }
+  if(next === 'ded'){
+    cellModalData = {staffId, day, type:'ded', staffName: staff.name};
+    document.getElementById('cell-modal-title').textContent = '扣薪金額';
+    document.getElementById('cell-modal-desc').textContent = `${staff.name} ${day}日 — 輸入扣薪金額`;
+    document.getElementById('cell-modal-label').textContent = '扣薪金額';
+    document.getElementById('cell-modal-amount').value = staff.cells[day+'_ded'] || '';
+    document.getElementById('cell-input-modal').style.display = 'flex';
+    staff.cells[day] = next;
+    scheduleSave(); renderSchedule();
+    return;
+  }
+  // Clear special amounts when leaving those states
+  if(current === 'free') delete staff.cells[day+'_free'];
+  if(current === 'ded') delete staff.cells[day+'_ded'];
+  staff.cells[day] = next;
+  scheduleSave(); renderSchedule();
+}
+
+function closeCellModal(){ document.getElementById('cell-input-modal').style.display='none'; cellModalData=null; }
+
+function saveCellAmount(){
+  if(!cellModalData) return;
+  const {staffId, day, type} = cellModalData;
+  const amt = +document.getElementById('cell-modal-amount').value||0;
+  const data = getScData();
+  const staff = data.escorts.find(x=>x.id===staffId);
+  if(staff) staff.cells[day+'_'+type] = amt;
+  scheduleSave(); closeCellModal(); renderSchedule();
+}
+
+function clickFixedCell(staffId, day){
+  const data = getScData();
+  const staff = data.fixed.find(x=>x.id===staffId);
+  if(!staff) return;
+  if(!staff.cells) staff.cells = {};
+  const current = staff.cells[day] || 'work';
+  const cycle = ['work','off','leave'];
+  const next = cycle[(cycle.indexOf(current)+1)%cycle.length];
+  staff.cells[day] = next;
+  scheduleSave(); renderSchedule();
+}
+
+function calcEscortPay(staff, days){
+  let workDays=0, freeTotal=0, dedTotal=0;
+  days.forEach(d=>{
+    const s = staff.cells?.[d]||'';
+    if(s==='on') workDays++;
+    else if(s==='half') workDays+=0.5;
+    else if(s==='free'){ workDays++; freeTotal+=(+staff.cells?.[d+'_free']||0); }
+    else if(s==='ded'){ workDays++; dedTotal+=(+staff.cells?.[d+'_ded']||0); }
+  });
+  const basePay = workDays * (+staff.daily||0);
+  const advances = 0; // calculated separately
+  return {workDays, basePay, freeTotal, dedTotal, net: basePay - dedTotal};
+}
+
+function renderSchedule(){
+  const data = getScData();
+  const days = getPeriodDays();
+  const y = document.getElementById('sc-year')?.value;
+  const m = document.getElementById('sc-month')?.value;
+
+  // ── Stats ──
+  const totalEscortPay = data.escorts.reduce((s,st)=>s+calcEscortPay(st,days).net,0);
+  const totalFixedPay = data.fixed.reduce((s,f)=>s+(+f.monthly||0),0);
+  const totalAdvance = data.advances.reduce((s,a)=>s+(+a.amount||0),0);
+  const grandTotal = totalEscortPay + totalFixedPay;
+  document.getElementById('sc-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">陪侍人數</div><div class="stat-value">${data.escorts.length} 位</div></div>
+    <div class="stat-card"><div class="stat-label">陪侍預估薪資</div><div class="stat-value red">$${fmt(totalEscortPay)}</div></div>
+    <div class="stat-card"><div class="stat-label">預支/借支</div><div class="stat-value" style="color:var(--orange)">$${fmt(totalAdvance)}</div></div>
+    <div class="stat-card"><div class="stat-label">薪資總預估</div><div class="stat-value red">$${fmt(grandTotal)}</div></div>`;
+
+  // ── Escort Table ──
+  const dayHeaders = days.map(d=>`<th style="min-width:30px;text-align:center">${d}</th>`).join('');
+  let escortRows = data.escorts.map(staff=>{
+    const pay = calcEscortPay(staff, days);
+    const cells = days.map(d=>{
+      const s = staff.cells?.[d]||'';
+      const style = getStatusStyle(s);
+      const label = getStatusLabel(s);
+      const extraAmt = s==='free'?(+staff.cells?.[d+'_free']||0):s==='ded'?(+staff.cells?.[d+'_ded']||0):0;
+      const title = s==='free'?`檯費$${extraAmt}`:s==='ded'?`扣$${extraAmt}`:'';
+      return `<td style="text-align:center;padding:3px 1px">
+        <span onclick="clickEscortCell('${staff.id}',${d})" title="${title}"
+          style="${style};display:inline-block;padding:3px 5px;border-radius:4px;cursor:pointer;font-size:11px;min-width:26px">
+          ${label||'&nbsp;'}${s==='free'&&extraAmt>0?`<br><span style="font-size:9px">$${extraAmt}</span>`:''}
+          ${s==='ded'&&extraAmt>0?`<br><span style="font-size:9px">-$${extraAmt}</span>`:''}
+        </span>
+      </td>`;
+    }).join('');
+
+    return `<tr>
+      <td style="padding:4px 8px;white-space:nowrap;background:var(--milk);font-weight:bold;color:var(--brown3)">
+        ${staff.name}
+        <button onclick="removeEscort('${staff.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:10px;margin-left:4px">✕</button>
+      </td>
+      <td style="padding:4px 6px;font-size:11px;color:var(--text3)">$${fmt(staff.daily)}/日</td>
+      ${cells}
+      <td style="padding:4px 6px;text-align:center;font-size:11px;background:var(--milk)">${pay.workDays}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:11px;background:var(--milk)">$${fmt(pay.basePay)}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:11px;color:var(--red);background:var(--milk)">${pay.dedTotal>0?'-$'+fmt(pay.dedTotal):'-'}</td>
+      <td style="padding:4px 6px;text-align:right;font-weight:bold;background:#EAF4EA;color:var(--green)">$${fmt(pay.net)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="${days.length+6}" style="padding:16px;text-align:center;color:var(--text3)">尚無陪侍人員，點「新增陪侍」</td></tr>`;
+
+  document.getElementById('sc-escort-table').innerHTML=`
+    <table style="border-collapse:collapse;width:100%;font-size:12px">
+      <thead>
+        <tr style="background:var(--brown3)">
+          <th style="padding:6px 8px;text-align:left;color:var(--gold);min-width:70px">姓名</th>
+          <th style="padding:6px 4px;color:var(--gold);font-size:10px">日薪</th>
+          ${dayHeaders}
+          <th style="padding:6px 4px;color:var(--gold);font-size:10px;background:#4A3020">出勤</th>
+          <th style="padding:6px 4px;color:var(--gold);font-size:10px;background:#4A3020">底薪</th>
+          <th style="padding:6px 4px;color:var(--gold);font-size:10px;background:#4A3020">扣款</th>
+          <th style="padding:6px 4px;color:#7FD47F;font-size:10px;background:#3A3020">預估薪</th>
+        </tr>
+      </thead>
+      <tbody>${escortRows}</tbody>
+    </table>`;
+
+  // ── Fixed Table ──
+  const fixedStatusStyle = {work:'background:#D4E4F0;color:#4A6A8A', off:'background:var(--milk2);color:var(--text3)', leave:'background:#EBEBEB;color:#888'};
+  const fixedStatusLabel = {work:'上', off:'休', leave:'假'};
+  let fixedRows = data.fixed.map(staff=>{
+    const cells = days.map(d=>{
+      const s = staff.cells?.[d]||'work';
+      return `<td style="text-align:center;padding:3px 1px">
+        <span onclick="clickFixedCell('${staff.id}',${d})"
+          style="${fixedStatusStyle[s]||fixedStatusStyle.work};display:inline-block;padding:3px 5px;border-radius:4px;cursor:pointer;font-size:11px;min-width:26px">
+          ${fixedStatusLabel[s]||'上'}
+        </span>
+      </td>`;
+    }).join('');
+    const workDays = days.filter(d=>(staff.cells?.[d]||'work')==='work').length;
+    return `<tr>
+      <td style="padding:4px 8px;background:var(--milk);font-weight:bold;color:#4A6A8A;white-space:nowrap">${staff.role}</td>
+      <td style="padding:4px 4px;background:var(--milk)">
+        <input type="text" value="${staff.name}" placeholder="姓名"
+          onchange="updateFixedStaff('${staff.id}','name',this.value)"
+          style="width:60px;font-size:11px;border:1px solid var(--milk3);border-radius:4px;padding:2px 4px">
+      </td>
+      ${cells}
+      <td style="padding:4px 6px;text-align:center;font-size:11px;background:var(--milk)">${workDays}</td>
+      <td style="padding:4px 4px;background:var(--milk)">
+        <input type="number" value="${staff.monthly||''}" placeholder="月薪"
+          onchange="updateFixedStaff('${staff.id}','monthly',this.value)"
+          style="width:80px;font-size:11px;border:1px solid var(--milk3);border-radius:4px;padding:2px 4px;text-align:right">
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('sc-fixed-table').innerHTML=`
+    <table style="border-collapse:collapse;width:100%;font-size:12px">
+      <thead>
+        <tr style="background:#4A6A8A">
+          <th style="padding:6px 8px;text-align:left;color:#fff;min-width:50px">職稱</th>
+          <th style="padding:6px 4px;color:#fff;font-size:10px">姓名</th>
+          ${days.map(d=>`<th style="min-width:30px;text-align:center;color:#fff;font-size:11px">${d}</th>`).join('')}
+          <th style="padding:6px 4px;color:#fff;font-size:10px">出勤</th>
+          <th style="padding:6px 4px;color:#fff;font-size:10px">月薪</th>
+        </tr>
+      </thead>
+      <tbody>${fixedRows}</tbody>
+    </table>`;
+
+  // ── Advances ──
+  renderAdvances();
+
+  // ── Pay Summary ──
+  const escortDetails = data.escorts.map(s=>{
+    const p = calcEscortPay(s, days);
+    const advAmt = data.advances.filter(a=>a.staffId===s.id).reduce((sum,a)=>sum+(+a.amount||0),0); // all types deduct
+    return `<div class="flex-between" style="padding:4px 0;font-size:12px;border-bottom:1px solid var(--milk2)">
+      <span>${s.name}</span>
+      <span>底薪$${fmt(p.basePay)}${p.dedTotal>0?' 扣$'+fmt(p.dedTotal):''}${advAmt>0?' 預支-$'+fmt(advAmt):''}</span>
+      <span style="font-weight:bold;color:var(--green)">$${fmt(p.net-advAmt)}</span>
+    </div>`;
+  }).join('');
+
+  const totalFixed = data.fixed.reduce((s,f)=>s+(+f.monthly||0),0);
+  const totalAdvanceDeduct = data.advances.reduce((s,a)=>s+(+a.amount||0),0); // both advance and borrow deduct from pay
+
+  document.getElementById('sc-pay-summary').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:bold">陪侍明細</div>
+        <div style="background:var(--milk2);border-radius:8px;padding:10px">
+          ${escortDetails || '<div style="font-size:11px;color:var(--text3)">尚無陪侍人員</div>'}
+          <div class="flex-between" style="padding:5px 0;font-weight:bold;border-top:1px solid var(--milk3);margin-top:4px">
+            <span>陪侍小計</span><span style="color:var(--red)">$${fmt(totalEscortPay - totalAdvanceDeduct)}</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:bold">固定人員</div>
+        <div style="background:var(--milk2);border-radius:8px;padding:10px">
+          ${data.fixed.map(f=>`<div class="flex-between" style="padding:3px 0;font-size:12px"><span>${f.role} ${f.name||''}</span><span>$${fmt(f.monthly||0)}</span></div>`).join('')}
+          <div class="flex-between" style="padding:5px 0;font-weight:bold;border-top:1px solid var(--milk3);margin-top:4px">
+            <span>固定小計</span><span>$${fmt(totalFixed)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--brown3);color:var(--gold);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:14px">本檔薪資總預估</span>
+      <span style="font-size:20px;font-weight:bold">$${fmt((totalEscortPay-totalAdvanceDeduct)+totalFixed)}</span>
+    </div>`;
+}
+
+function renderAdvances(){
+  const data = getScData();
+  const el = document.getElementById('sc-advance-list');
+  if(!el) return;
+  const total = data.advances.reduce((s,a)=>s+(+a.amount||0),0);
+  document.getElementById('sc-advance-total').textContent = '$'+fmt(total);
+  el.innerHTML = data.advances.map(a=>`
+    <div class="list-item" style="padding:8px 12px">
+      <div>
+        <div style="font-size:12px;font-weight:bold">${a.staffName} <span class="badge badge-red">${a.type==='advance'?'預支':'借支'}</span></div>
+        <div style="font-size:10px;color:var(--text3)">${a.date}${a.note?' ｜ '+a.note:''}</div>
+      </div>
+      <div class="flex gap8" style="align-items:center">
+        <span style="font-weight:bold;color:var(--red)">$${fmt(a.amount)}</span>
+        <button onclick="removeAdvance('${a.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px">✕</button>
+      </div>
+    </div>`).join('') || '<div style="padding:10px;text-align:center;color:var(--text3);font-size:12px">尚無預支/借支記錄</div>';
+}
+
+/* ── CRUD ── */
+function openAddStaffModal(){
+  document.getElementById('add-staff-modal').style.display='flex';
+  document.getElementById('staff-name').value='';
+  document.getElementById('staff-daily').value='';
+}
+function closeAddStaffModal(){ document.getElementById('add-staff-modal').style.display='none'; }
+function saveAddStaff(){
+  const name = document.getElementById('staff-name').value.trim();
+  const daily = +document.getElementById('staff-daily').value||0;
+  if(!name){ alert('請輸入姓名'); return; }
+  const data = getScData();
+  data.escorts.push({id: 'e'+Date.now(), name, daily, cells:{}});
+  writeLog('新增', `班表新增陪侍 ${name} 日薪$${daily}`);
+  scheduleSave(); closeAddStaffModal(); renderSchedule();
+}
+function removeEscort(id){
+  if(!confirm('確認移除此人員？')) return;
+  const data = getScData();
+  data.escorts = data.escorts.filter(x=>x.id!==id);
+  scheduleSave(); renderSchedule();
+}
+function updateFixedStaff(id, field, val){
+  const data = getScData();
+  const staff = data.fixed.find(x=>x.id===id);
+  if(staff) staff[field] = field==='monthly'?+val||0:val;
+  scheduleSave();
+}
+
+function openAddAdvanceModal(){
+  document.getElementById('add-advance-modal').style.display='flex';
+  document.getElementById('adv-date').value = NOW.toISOString().slice(0,10);
+  document.getElementById('adv-amount').value='';
+  document.getElementById('adv-note').value='';
+  // Populate staff list
+  const data = getScData();
+  const allStaff = [
+    ...data.escorts.map(s=>({id:s.id, name:s.name})),
+    ...data.fixed.map(s=>({id:s.id, name:(s.role+(s.name?' '+s.name:''))}))
+  ];
+  document.getElementById('adv-staff').innerHTML =
+    '<option value="">選擇人員</option>' + allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+}
+function closeAddAdvanceModal(){ document.getElementById('add-advance-modal').style.display='none'; }
+function saveAddAdvance(){
+  const date = document.getElementById('adv-date').value;
+  const sel = document.getElementById('adv-staff');
+  const staffId = sel.value;
+  const staffName = sel.options[sel.selectedIndex]?.text||'';
+  const type = document.getElementById('adv-type').value;
+  const amount = +document.getElementById('adv-amount').value||0;
+  const note = document.getElementById('adv-note').value;
+  if(!date||!staffId||amount<=0){ alert('請填寫日期、人員和金額'); return; }
+  const data = getScData();
+  data.advances.push({id:'adv'+Date.now(), date, staffId, staffName, type, amount, note});
+  writeLog('新增', `班表預支 ${staffName} $${amount}`);
+  scheduleSave(); closeAddAdvanceModal(); renderSchedule();
+}
+function removeAdvance(id){
+  if(!confirm('確認刪除此筆預支記錄？')) return;
+  const data = getScData();
+  data.advances = data.advances.filter(x=>x.id!==id);
+  scheduleSave(); renderSchedule();
+}
+
+function saveSchedule(){
+  scheduleSave();
+  alert('✅ 班表已儲存至雲端');
+  writeLog('儲存', `班表 ${scKey()}`);
+}
+
+
+/* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
 window.setDailyToday = setDailyToday;
@@ -1816,6 +2349,22 @@ window.openEditModal = openEditModal;
 window.renderLog = renderLog;
 window.deleteDaily = deleteDaily;
 window.switchAuthTab = switchAuthTab;
+window.setScPeriod = setScPeriod;
+window.renderSchedule = renderSchedule;
+window.clickEscortCell = clickEscortCell;
+window.clickFixedCell = clickFixedCell;
+window.closeCellModal = closeCellModal;
+window.saveCellAmount = saveCellAmount;
+window.openAddStaffModal = openAddStaffModal;
+window.closeAddStaffModal = closeAddStaffModal;
+window.saveAddStaff = saveAddStaff;
+window.removeEscort = removeEscort;
+window.updateFixedStaff = updateFixedStaff;
+window.openAddAdvanceModal = openAddAdvanceModal;
+window.closeAddAdvanceModal = closeAddAdvanceModal;
+window.saveAddAdvance = saveAddAdvance;
+window.removeAdvance = removeAdvance;
+window.saveSchedule = saveSchedule;
 window.toggleMixedPay = toggleMixedPay;
 window.addTreatRow = addTreatRow;
 window.calcMixedPay = calcMixedPay;
@@ -1858,12 +2407,12 @@ function setDefaultDate(id){ const el=document.getElementById(id); if(el&&!el.va
 function initYearSelects(){
   const y=NOW.getFullYear(), years=[];
   for(let i=y-4;i<=y+1;i++) years.push(i);
-  ['ov-year','dl-year','pu-year','pu-sum-year','pr-year','mo-year','sg-year','sg-filter-year','rp-year','rp-yr-a','rp-yr-b'].forEach(id=>{
+  ['ov-year','dl-year','pu-year','pu-sum-year','pr-year','mo-year','sg-year','sg-filter-year','rp-year','rp-yr-a','rp-yr-b','sc-year'].forEach(id=>{
     const el=document.getElementById(id); if(!el)return;
     el.innerHTML=years.map(yr=>`<option value="${yr}"${yr===y?' selected':''}>${yr}年</option>`).join('');
   });
   const months=Array.from({length:12},(_,i)=>`<option value="${i+1}"${(i+1)===NOW.getMonth()+1?' selected':''}>${i+1}月</option>`).join('');
-  ['dl-month','pu-month','pr-month','mo-month'].forEach(id=>{
+  ['dl-month','pu-month','pr-month','mo-month','sc-month'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.innerHTML=months;
   });
   const rpa=document.getElementById('rp-yr-b'); if(rpa) rpa.value=y-1;
@@ -1879,6 +2428,7 @@ function refreshCurrentPage(id){
   else if(id==='monthly') renderMonthly();
   else if(id==='signing') renderSigning();
   else if(id==='report') renderReport();
+  else if(id==='schedule') renderSchedule();
   else if(id==='log') renderLog();
 }
 
@@ -1889,7 +2439,7 @@ function showPage(id){
   document.querySelectorAll('[id^="page-"]').forEach(el=>el.classList.add('hidden'));
   document.getElementById('page-'+id).classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  const map={overview:0,daily:1,monthly:2,signing:3,report:4,log:5};
+  const map={overview:0,daily:1,monthly:2,signing:3,report:4,schedule:5,log:6};
   document.querySelectorAll('.nav-btn')[map[id]]?.classList.add('active');
   refreshCurrentPage(id);
   if(id==='log') renderLog();
