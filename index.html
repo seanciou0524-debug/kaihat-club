@@ -969,6 +969,32 @@ service cloud.firestore {
 
     <!-- ───── 操作紀錄 ───── -->
     <div id="page-log" class="hidden">
+
+      <!-- 帳號管理（管理員專用）-->
+      <div class="card" id="admin-pwd-card">
+        <div class="card-title">🔐 帳號密碼管理（管理員專用）</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>選擇帳號</label>
+            <select id="pwd-target-user" style="width:100%">
+              <option value="">選擇要修改的帳號</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>新密碼</label>
+            <input type="password" id="pwd-new" placeholder="輸入新密碼（至少6碼）">
+          </div>
+          <div class="form-group">
+            <label>確認密碼</label>
+            <input type="password" id="pwd-confirm" placeholder="再次輸入新密碼">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-gold" onclick="changeUserPassword()">🔐 修改密碼</button>
+        </div>
+        <div id="pwd-msg" style="margin-top:8px;font-size:12px"></div>
+      </div>
+
       <div class="card">
         <div class="card-title">操作紀錄</div>
         <div class="month-selector">
@@ -1130,6 +1156,7 @@ function ensureSchema(){
   if(!DB.sgSettings) DB.sgSettings = { overdueDays: 30 };
   if(!DB.carryover) DB.carryover = {}; // {YYYY-MM: amount}
   if(!DB.schedule) DB.schedule = {};
+  if(!DB.pwdRequests) DB.pwdRequests = {};
   if(!DB.signBillDeleted) DB.signBillDeleted = [];
 }
 
@@ -1924,6 +1951,7 @@ function setScPeriod(p){
 function getScData(){
   const k = scKey();
   if(!DB.schedule) DB.schedule = {};
+  if(!DB.pwdRequests) DB.pwdRequests = {};
   if(!DB.schedule[k]) DB.schedule[k] = {escorts:[], fixed:[], advances:[]};
   // Ensure fixed staff exist
   const fixedStaff = [
@@ -2293,6 +2321,87 @@ function saveSchedule(){
 
 
 /* ════════════════════════════════════════
+   🔐 帳號密碼管理（管理員）
+════════════════════════════════════════ */
+async function initPwdManagement(){
+  // Only show for admin
+  const card = document.getElementById('admin-pwd-card');
+  if(!card) return;
+  if(currentRole !== 'admin'){
+    card.style.display = 'none';
+    return;
+  }
+  // Populate user list
+  const users = [
+    'admin', 'accounting', 'manager', 'shareholder1', 'shareholder2'
+  ];
+  const sel = document.getElementById('pwd-target-user');
+  if(sel){
+    sel.innerHTML = '<option value="">選擇要修改的帳號</option>' +
+      users.map(u => `<option value="${u}@kaihat.app">${u}</option>`).join('');
+  }
+}
+
+async function changeUserPassword(){
+  if(currentRole !== 'admin'){ alert('只有管理員可以修改密碼'); return; }
+  const targetEmail = document.getElementById('pwd-target-user').value;
+  const newPwd = document.getElementById('pwd-new').value;
+  const confirmPwd = document.getElementById('pwd-confirm').value;
+
+  if(!targetEmail){ showPwdMsg('請選擇帳號', 'var(--red)'); return; }
+  if(!newPwd || newPwd.length < 6){ showPwdMsg('密碼至少需要 6 個字元', 'var(--red)'); return; }
+  if(newPwd !== confirmPwd){ showPwdMsg('兩次密碼輸入不一致', 'var(--red)'); return; }
+
+  try {
+    showPwdMsg('處理中...', 'var(--text3)');
+    const API_KEY = 'AIzaSyCNA884sM69VbDuFdz2xltiuqBTIG7QWaw';
+
+    if(targetEmail === currentUser.email){
+      // 修改自己的密碼 - 直接用 Firebase Auth
+      const { updatePassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      await updatePassword(currentUser, newPwd);
+    } else {
+      // 修改其他帳號 - 需要知道目前密碼才能操作
+      // 方案：在 DB 存一個「待更新密碼」記錄，讓該用戶下次登入時自動更新
+      // 實際更新：用管理員 token 呼叫 Firebase REST API
+      const idToken = await currentUser.getIdToken(true);
+      
+      // 先查詢該用戶 UID
+      const lookupRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${API_KEY}`,
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({idToken}) }
+      );
+      // 存入 DB 讓對方下次登入自動更新（因客戶端無法直接更新他人密碼）
+      if(!DB.pwdRequests) DB.pwdRequests = {};
+      DB.pwdRequests[targetEmail] = { newPwd, requestedAt: Date.now(), by: currentUser.email };
+      await saveDB();
+      showPwdMsg(`✅ 密碼更新請求已儲存！
+${targetEmail} 下次登入時會自動套用新密碼。`, 'var(--green)');
+      writeLog('修改', `密碼請求：${targetEmail}`);
+      document.getElementById('pwd-new').value = '';
+      document.getElementById('pwd-confirm').value = '';
+      return;
+    }
+    showPwdMsg('✅ 密碼已成功更新！', 'var(--green)');
+    writeLog('修改', `密碼修改：${targetEmail}`);
+    document.getElementById('pwd-new').value = '';
+    document.getElementById('pwd-confirm').value = '';
+  } catch(err) {
+    if(err.code === 'auth/requires-recent-login'){
+      showPwdMsg('⚠️ 需要重新登入後才能修改自己的密碼', 'var(--orange)');
+    } else {
+      showPwdMsg(`❌ 錯誤：${err.message}`, 'var(--red)');
+    }
+  }
+}
+
+function showPwdMsg(msg, color){
+  const el = document.getElementById('pwd-msg');
+  if(el){ el.textContent = msg; el.style.color = color; }
+}
+
+/* ════════════════════════════════════════
    暴露函數給 HTML onclick 使用（type=module 必須）
 ════════════════════════════════════════ */
 window.setDailyToday = setDailyToday;
@@ -2363,6 +2472,7 @@ window.openEditModal = openEditModal;
 window.renderLog = renderLog;
 window.deleteDaily = deleteDaily;
 window.switchAuthTab = switchAuthTab;
+window.changeUserPassword = changeUserPassword;
 window.setScPeriod = setScPeriod;
 window.renderSchedule = renderSchedule;
 window.clickEscortCell = clickEscortCell;
@@ -2395,6 +2505,17 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('hdr-username').textContent = displayName;
     setCloudStatus('saving');
     await loadDB();
+    // Check for pending password update request
+    if(DB.pwdRequests && DB.pwdRequests[user.email]){
+      const req = DB.pwdRequests[user.email];
+      try {
+        const { updatePassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+        await updatePassword(user, req.newPwd);
+        delete DB.pwdRequests[user.email];
+        await saveDB();
+        console.log('密碼已自動更新');
+      } catch(e) { console.warn('密碼更新失敗:', e); }
+    }
     writeLog('登入', '帳號登入系統');
     await saveDB();
     setCloudStatus('saved');
@@ -2444,7 +2565,7 @@ function refreshCurrentPage(id){
   else if(id==='signing') renderSigning();
   else if(id==='report') renderReport();
   else if(id==='schedule') renderSchedule();
-  else if(id==='log') renderLog();
+  else if(id==='log'){ renderLog(); initPwdManagement(); }
 }
 
 /* ════════════════════════════════════════
